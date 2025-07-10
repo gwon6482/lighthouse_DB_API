@@ -1,0 +1,47 @@
+{
+  "name": "lighthouse-db-api",
+  "version": "1.0.0",
+  "description": "MongoDB와 소통하는 Express 기반 API 서버",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop lighthouse-db-api",
+    "pm2:restart": "pm2 restart lighthouse-db-api",
+    "pm2:delete": "pm2 delete lighthouse-db-api",
+    "pm2:logs": "pm2 logs lighthouse-db-api",
+    "pm2:monit": "pm2 monit",
+    "pm2:start:prod": "pm2 start ecosystem.config.js --env production",
+    "docker:build": "docker build -t lighthouse-db-api .",
+    "docker:run": "docker run -p 3000:3000 --name lighthouse-db-api lighthouse-db-api",
+    "docker:compose:up": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down",
+    "docker:compose:logs": "docker-compose logs -f",
+    "docker:compose:prod:up": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:compose:prod:down": "docker-compose -f docker-compose.prod.yml down",
+    "docker:dev": "./scripts/docker-build.sh dev",
+    "docker:prod": "./scripts/docker-build.sh prod",
+    "docker:logs": "./scripts/docker-build.sh logs",
+    "docker:status": "./scripts/docker-build.sh status",
+    "docker:cleanup": "./scripts/docker-build.sh cleanup",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["express", "mongodb", "api", "lighthouse"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "pm2": "^5.3.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+} 

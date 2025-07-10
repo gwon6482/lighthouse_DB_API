@@ -1,0 +1,531 @@
+const express = require('express');
+const router = express.Router();
+const {
+  getSurveyForm,
+  submitSurveyResponse,
+  getSurveyResult,
+  getSurveyAnalysis,
+  updateSurveyStatistics,
+  getSurveyStatistics,
+  getSurveyResultList
+} = require('../controllers/surveyController');
+
+/**
+ * @swagger
+ * /api/survey/form:
+ *   get:
+ *     summary: 전체 설문지 조회
+ *     description: 모든 컬렉션의 활성화된 질문들을 조회하여 설문지를 생성합니다.
+ *     tags: [Survey]
+ *     responses:
+ *       200:
+ *         description: 설문지 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     survey_id:
+ *                       type: string
+ *                       description: 자동 생성된 설문 ID
+ *                     questions:
+ *                       type: object
+ *                       properties:
+ *                         T1_personality:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Question'
+ *                         T2_1_talent:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Question'
+ *                         T2_2_interest:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Question'
+ *                         T2_3_values:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Question'
+ *                         T3_environmental:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Question'
+ */
+router.get('/form', getSurveyForm);
+
+/**
+ * @swagger
+ * /api/survey/response:
+ *   post:
+ *     summary: 설문 응답 제출
+ *     description: 사용자의 설문 응답을 저장합니다.
+ *     tags: [Survey]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - survey_id
+ *               - answers
+ *             properties:
+ *               survey_id:
+ *                 type: string
+ *                 description: 설문 ID
+ *               completed_at:
+ *                 type: string
+ *                 format: date-time
+ *                 description: 완료 시간
+ *               is_completed:
+ *                 type: boolean
+ *                 description: 완료 여부
+ *               temp_save:
+ *                 type: object
+ *                 properties:
+ *                   part:
+ *                     type: string
+ *                     nullable: true
+ *                   page:
+ *                     type: string
+ *                     nullable: true
+ *                   question_num:
+ *                     type: string
+ *                     nullable: true
+ *                 description: 임시 저장 정보
+ *               answer_type:
+ *                 type: string
+ *                 description: 응답 타입
+ *               answers:
+ *                 type: object
+ *                 description: 컬렉션별 응답
+ *                 properties:
+ *                   T1:
+ *                     type: object
+ *                     description: 성격 관련 응답
+ *                     additionalProperties:
+ *                       type: string
+ *                       enum: [O, X]
+ *                   T21:
+ *                     type: object
+ *                     description: 재능 관련 응답
+ *                     additionalProperties:
+ *                       type: string
+ *                       enum: [O, X]
+ *                   T22:
+ *                     type: object
+ *                     description: 관심사 관련 응답
+ *                     properties:
+ *                       checked:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                   T23:
+ *                     type: object
+ *                     description: 가치관 관련 응답
+ *                     properties:
+ *                       priority_1:
+ *                         type: string
+ *                       priority_2:
+ *                         type: string
+ *                       priority_3:
+ *                         type: string
+ *                       no_priority:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                   T3:
+ *                     type: object
+ *                     description: 환경 관련 응답
+ *                     additionalProperties:
+ *                       type: string
+ *                       enum: [O, X, M]
+ *           example:
+ *             survey_id: "12"
+ *             completed_at: "2024-06-13T15:30:00+09:00"
+ *             is_completed: true
+ *             temp_save:
+ *               part: null
+ *               page: null
+ *               question_num: null
+ *             answer_type: "type_2"
+ *             answers:
+ *               T1:
+ *                 T1_A4: "O"
+ *                 T1_A1: "X"
+ *                 T1_E4: "O"
+ *                 T1_T1: "X"
+ *                 T1_T4: "O"
+ *                 T1_G4: "X"
+ *                 T1_U2: "O"
+ *                 T1_S5: "X"
+ *                 T1_A5: "O"
+ *                 T1_E3: "X"
+ *                 T1_C2: "O"
+ *                 T1_A6: "X"
+ *                 T1_G3: "O"
+ *                 T1_S2: "X"
+ *                 T1_U1: "O"
+ *                 T1_C3: "X"
+ *                 T1_E1: "O"
+ *                 T1_C5: "X"
+ *                 T1_T5: "O"
+ *                 T1_A3: "X"
+ *                 T1_C1: "O"
+ *                 T1_S1: "X"
+ *                 T1_I4: "O"
+ *                 T1_U5: "X"
+ *                 T1_I3: "O"
+ *                 T1_U4: "X"
+ *                 T1_R2: "O"
+ *                 T1_C4: "X"
+ *                 T1_G2: "O"
+ *                 T1_A2: "X"
+ *                 T1_S4: "O"
+ *                 T1_I2: "X"
+ *                 T1_T2: "O"
+ *                 T1_R1: "X"
+ *                 T1_T3: "O"
+ *                 T1_R4: "X"
+ *                 T1_I1: "O"
+ *                 T1_E5: "X"
+ *                 T1_G1: "O"
+ *                 T1_E2: "X"
+ *                 T1_U3: "O"
+ *                 T1_S3: "X"
+ *                 T1_R3: "O"
+ *               T21:
+ *                 T21_T2: "O"
+ *                 T21_N6: "X"
+ *                 T21_I1: "O"
+ *                 T21_A4: "X"
+ *                 T21_B2: "O"
+ *                 T21_S2: "X"
+ *                 T21_T3: "O"
+ *                 T21_S1: "X"
+ *                 T21_I4: "O"
+ *                 T21_A8: "X"
+ *                 T21_S3: "O"
+ *                 T21_L2: "X"
+ *                 T21_B5: "O"
+ *                 T21_S4: "X"
+ *                 T21_A7: "O"
+ *                 T21_B3: "X"
+ *                 T21_A1: "O"
+ *                 T21_N2: "X"
+ *                 T21_T6: "O"
+ *                 T21_L8: "X"
+ *                 T21_B7: "O"
+ *                 T21_L4: "X"
+ *                 T21_I3: "O"
+ *                 T21_B1: "X"
+ *                 T21_N7: "O"
+ *                 T21_S7: "X"
+ *                 T21_T1: "O"
+ *                 T21_A6: "X"
+ *                 T21_M4: "O"
+ *                 T21_B6: "X"
+ *                 T21_I6: "O"
+ *                 T21_A3: "X"
+ *                 T21_L3: "O"
+ *                 T21_T5: "X"
+ *                 T21_I8: "O"
+ *                 T21_I5: "X"
+ *                 T21_L7: "O"
+ *                 T21_A5: "X"
+ *                 T21_B4: "O"
+ *                 T21_M1: "X"
+ *                 T21_T7: "O"
+ *                 T21_S6: "X"
+ *                 T21_N1: "O"
+ *                 T21_M5: "X"
+ *                 T21_S5: "O"
+ *                 T21_B8: "X"
+ *                 T21_L5: "O"
+ *                 T21_A2: "X"
+ *                 T21_M2: "O"
+ *                 T21_M3: "X"
+ *                 T21_N4: "O"
+ *                 T21_M6: "X"
+ *                 T21_S8: "O"
+ *                 T21_N3: "X"
+ *                 T21_L6: "O"
+ *                 T21_I7: "X"
+ *                 T21_L1: "O"
+ *                 T21_I2: "X"
+ *                 T21_T4: "O"
+ *                 T21_N5: "X"
+ *                 T21_M7: "O"
+ *               T22:
+ *                 checked: ["T22_BUS_1", "T22_BUS_2", "T22_BUS_3"]
+ *               T23:
+ *                 priority_1: "T3_1"
+ *                 priority_2: "T3_2"
+ *                 priority_3: "T3_3"
+ *                 no_priority: ["T3_4", "T3_5", "T3_6"]
+ *               T3:
+ *                 T3_1_1_1: "X"
+ *                 T3_1_1_2: "M"
+ *                 T3_1_1_3: "O"
+ *                 T3_1_2_1: "X"
+ *                 T3_1_2_2: "M"
+ *                 T3_1_2_3: "O"
+ *                 T3_1_2_4: "X"
+ *                 T3_1_2_5: "M"
+ *                 T3_1_2_6: "O"
+ *                 T3_1_3_1: "X"
+ *                 T3_1_3_2: "M"
+ *                 T3_1_3_3: "O"
+ *                 T3_1_3_4: "X"
+ *                 T3_2_1_1: "M"
+ *                 T3_2_2_1: "O"
+ *                 T3_2_2_2: "X"
+ *                 T3_2_2_3: "M"
+ *                 T3_2_3_1: "O"
+ *                 T3_2_3_2: "X"
+ *                 T3_2_3_3: "M"
+ *                 T3_2_3_4: "O"
+ *                 T3_3_1_1: "X"
+ *                 T3_3_1_2: "M"
+ *                 T3_3_1_3: "O"
+ *                 T3_3_2_1: "X"
+ *                 T3_3_2_2: "M"
+ *                 T3_3_2_3: "O"
+ *                 T3_3_2_4: "X"
+ *                 T3_3_2_5: "M"
+ *                 T3_3_2_6: "O"
+ *                 T3_3_2_7: "X"
+ *                 T3_3_3_1: "M"
+ *                 T3_3_3_2: "O"
+ *                 T3_3_3_3: "X"
+ *                 T3_4_1_1: "M"
+ *                 T3_4_1_2: "O"
+ *                 T3_4_1_3: "X"
+ *                 T3_4_1_4: "M"
+ *                 T3_4_1_5: "O"
+ *                 T3_4_1_6: "X"
+ *                 T3_4_1_7: "M"
+ *                 T3_4_1_8: "O"
+ *                 T3_4_1_9: "X"
+ *                 T3_4_2_1: "M"
+ *                 T3_4_2_2: "O"
+ *                 T3_4_2_3: "X"
+ *                 T3_4_2_4: "M"
+ *                 T3_4_3_1: "O"
+ *                 T3_4_3_2: "X"
+ *     responses:
+ *       201:
+ *         description: 설문 응답 저장 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/SurveyResult'
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/response', submitSurveyResponse);
+
+/**
+ * @swagger
+ * /api/survey/result/{survey_id}:
+ *   get:
+ *     summary: 설문 결과 조회
+ *     description: 특정 설문 ID의 결과를 조회합니다.
+ *     tags: [Survey]
+ *     parameters:
+ *       - in: path
+ *         name: survey_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 설문 ID
+ *     responses:
+ *       200:
+ *         description: 설문 결과 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/SurveyResult'
+ *       404:
+ *         description: 설문 결과를 찾을 수 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/result/:survey_id', getSurveyResult);
+
+/**
+ * @swagger
+ * /api/survey/analysis/{survey_id}:
+ *   get:
+ *     summary: 설문 분석 결과 조회
+ *     description: 특정 설문 ID의 분석 결과를 조회합니다.
+ *     tags: [Survey]
+ *     parameters:
+ *       - in: path
+ *         name: survey_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 설문 ID
+ *     responses:
+ *       200:
+ *         description: 설문 분석 결과 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     survey_id:
+ *                       type: string
+ *                     analysis:
+ *                       type: object
+ *                       description: 분석 결과 데이터
+ */
+router.get('/analysis/:survey_id', getSurveyAnalysis);
+
+/**
+ * @swagger
+ * /api/survey/statistics/update:
+ *   post:
+ *     summary: 통계치 갱신
+ *     description: 설문 통계치를 누적하여 갱신합니다.
+ *     tags: [Survey]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - survey_id
+ *               - statistics_data
+ *             properties:
+ *               survey_id:
+ *                 type: string
+ *                 description: 설문 ID
+ *               statistics_data:
+ *                 type: object
+ *                 description: 통계 데이터
+ *     responses:
+ *       200:
+ *         description: 통계치 갱신 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ */
+router.post('/statistics/update', updateSurveyStatistics);
+
+/**
+ * @swagger
+ * /api/survey/statistics:
+ *   get:
+ *     summary: 통계치 조회
+ *     description: 전체 설문 통계를 조회합니다.
+ *     tags: [Survey]
+ *     responses:
+ *       200:
+ *         description: 통계치 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total_surveys:
+ *                       type: number
+ *                     total_responses:
+ *                       type: number
+ *                     collection_statistics:
+ *                       type: object
+ */
+router.get('/statistics', getSurveyStatistics);
+
+/**
+ * @swagger
+ * /api/survey/result/list:
+ *   get:
+ *     summary: 설문 결과 리스트 조회
+ *     description: 모든 설문 결과 목록을 페이지네이션을 지원하여 조회합니다.
+ *     tags: [Survey]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 페이지 번호
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: 페이지당 항목 수
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: string
+ *         description: 사용자 ID로 필터링
+ *     responses:
+ *       200:
+ *         description: 설문 결과 리스트 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/SurveyResult'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     current_page:
+ *                       type: integer
+ *                     total_pages:
+ *                       type: integer
+ *                     total_items:
+ *                       type: integer
+ */
+router.get('/result/list', getSurveyResultList);
+
+module.exports = router; 

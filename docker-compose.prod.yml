@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Lighthouse DB API 애플리케이션 (프로덕션)
+  lighthouse-api:
+    build: .
+    container_name: lighthouse-db-api-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/lighthouse_db
+      - JOB_DATA_DB=job_data
+      - SURVEY_QUESTIONS_DB=survey_questions
+      - SURVEY_DATA_DB=survey_data
+    volumes:
+      - lighthouse_logs:/app/logs
+      - lighthouse_temp:/app/temp
+    depends_on:
+      - mongo
+    restart: always
+    networks:
+      - lighthouse-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # MongoDB 데이터베이스 (프로덕션)
+  mongo:
+    image: mongo:6.0
+    container_name: lighthouse-mongodb-prod
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+      - MONGO_INITDB_DATABASE=lighthouse_db
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    restart: always
+    networks:
+      - lighthouse-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+volumes:
+  mongodb_data:
+    driver: local
+  lighthouse_logs:
+    driver: local
+  lighthouse_temp:
+    driver: local
+
+networks:
+  lighthouse-network:
+    driver: bridge 
