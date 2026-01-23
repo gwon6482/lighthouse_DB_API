@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Lighthouse DB API 애플리케이션
   lighthouse-api:
@@ -10,7 +8,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - MONGODB_URI=mongodb://mongo:27017/lighthouse_db
+      - MONGODB_URI=mongodb://admin:password123@mongo:27017/?authSource=admin
       - JOB_DATA_DB=job_data
       - SURVEY_QUESTIONS_DB=survey_questions
       - SURVEY_DATA_DB=survey_data
@@ -37,6 +35,29 @@ services:
       - mongodb_data:/data/db
       - ./mongo-init:/docker-entrypoint-initdb.d
     restart: unless-stopped
+    networks:
+      - lighthouse-network
+
+  # MongoDB 덤프 자동 복원 (최초 1회 실행)
+  mongo-restore:
+    image: mongo:6.0
+    container_name: lighthouse-mongo-restore
+    depends_on:
+      - mongo
+    volumes:
+      - ./dump:/dump
+    entrypoint: >
+      bash -c "
+        echo '🔄 MongoDB 복원 대기 중...'
+        sleep 10
+        if [ -d /dump ] && [ -n \"$$(ls -A /dump 2>/dev/null)\" ]; then
+          echo '📦 덤프 파일 발견, 복원 시작...'
+          mongorestore --uri='mongodb://admin:password123@mongo:27017/?authSource=admin' --drop /dump
+          echo '✅ 덤프 복원 완료!'
+        else
+          echo '⚠️ 덤프 폴더가 비어있습니다.'
+        fi
+      "
     networks:
       - lighthouse-network
 

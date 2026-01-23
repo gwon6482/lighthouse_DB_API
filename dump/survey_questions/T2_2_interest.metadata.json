@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"field_id":{"$numberInt":"1"}},"name":"field_id_1","background":true,"unique":true}],"uuid":"0140b85a748045178271a78c95543bb2","collectionName":"T2_2_interest","type":"collection"}

@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"question_id":{"$numberInt":"1"}},"name":"question_id_1","background":true,"unique":true}],"uuid":"d2b6d0b5084d4918b0d18952d1b221ac","collectionName":"T2_1_talent","type":"collection"}
