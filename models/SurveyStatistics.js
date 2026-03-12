@@ -33,6 +33,14 @@ const surveyStatisticsSchema = new mongoose.Schema({
     type: Object,
     default: {}
   },
+  // 상위 그룹별 통계 (개별 질문 점수의 평균으로 누적된 Welford 통계)
+  // T1 그룹: T1_E, T1_C, T1_S, T1_A, T1_I, T1_R, T1_G, T1_U, T1_T
+  // T21 그룹: T21_L, T21_M, T21_A, T21_S, T21_I, T21_N, T21_T, T21_B
+  // 각 항목: { count, mean, stddev, M2 }
+  group_stats: {
+    type: Object,
+    default: {}
+  },
   overall_stats: {
     completion_rate: Number,
     average_time: Number

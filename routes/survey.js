@@ -3,7 +3,7 @@ const router = express.Router();
 const {
   getSurveyForm,
   submitSurveyResponse,
-  getSurveyResult,
+  getSurveyReport,
   getSurveyAnalysis,
   updateSurveyStatistics,
   getSurveyStatistics,
@@ -373,7 +373,121 @@ router.post('/response', submitSurveyResponse);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/result/:survey_id', getSurveyResult);
+/**
+ * @swagger
+ * /api/survey/report:
+ *   post:
+ *     summary: 설문 결과 보고서 조회
+ *     description: survey_id로 개인 설문 결과를 조회합니다. T1/T21 그룹별 응답값, 모집단 평균, 상위%, T22/T23/T3 결과를 반환합니다.
+ *     tags: [Survey]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - survey_id
+ *             properties:
+ *               survey_id:
+ *                 type: string
+ *                 description: 설문 ID
+ *                 example: "SURV20260305D_120000T"
+ *     responses:
+ *       200:
+ *         description: 설문 결과 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 result:
+ *                   type: object
+ *                   properties:
+ *                     survey_id:
+ *                       type: string
+ *                     completed_at:
+ *                       type: string
+ *                       format: date-time
+ *                     answer_type:
+ *                       type: string
+ *                       enum: [type_2, type_5, type_10]
+ *                     T1:
+ *                       type: object
+ *                       description: T1 그룹별 결과 (E,C,S,A,I,R,G,U,T)
+ *                       additionalProperties:
+ *                         type: object
+ *                         properties:
+ *                           user:
+ *                             type: number
+ *                             description: 개인 정규화 점수 평균 (0~1)
+ *                           average:
+ *                             type: number
+ *                             description: 모집단 평균
+ *                           top_percent:
+ *                             type: number
+ *                             nullable: true
+ *                             description: 상위 몇% (통계 부족 시 null)
+ *                     T21:
+ *                       type: object
+ *                       description: T21 그룹별 결과 (T,L,M,B,S,I,N,A)
+ *                       additionalProperties:
+ *                         type: object
+ *                         properties:
+ *                           user:
+ *                             type: number
+ *                           average:
+ *                             type: number
+ *                           top_percent:
+ *                             type: number
+ *                             nullable: true
+ *                     T22:
+ *                       type: object
+ *                       properties:
+ *                         checked:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                     T23:
+ *                       type: object
+ *                       properties:
+ *                         priority_1:
+ *                           type: string
+ *                         priority_2:
+ *                           type: string
+ *                         priority_3:
+ *                           type: string
+ *                     T3:
+ *                       type: object
+ *                       properties:
+ *                         O:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         M:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         X:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *       400:
+ *         description: survey_id 누락
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: 해당 survey_id의 응답 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/report', getSurveyReport);
 
 /**
  * @swagger

@@ -191,19 +191,19 @@ const submitSurveyResponse = async (req, res) => {
         stat.M2 = Math.pow(stat.stddev || 0, 2) * (stat.count - 1);
       }
     }
-    // T1, T21: OX(2점 척도)
+    // T1, T21: answer_type에 따라 정규화 후 Welford 누적 (0~1 스케일 통일)
     for (const part of ['T1', 'T21']) {
       if (data.answers[part]) {
         for (const [qid, value] of Object.entries(data.answers[part])) {
-          // updatedStats에 대해 처리
+          const score = normalizeScore(value, data.answer_type);
+          if (score === null) continue;
+
           if (!updatedStats.question_stats[qid]) {
             updatedStats.question_stats[qid] = { count: 0, mean: 0, stddev: 0, M2: 0 };
           }
           const stat = updatedStats.question_stats[qid];
 
-          // OX 환산: O=1, X=0
-          const score = value === 'O' ? 1 : 0;
-          let prevCount = stat.count || 0;
+          const prevCount = stat.count || 0;
           const prevMean = stat.mean || 0;
           const prevM2 = stat.M2 || 0;
 
@@ -269,46 +269,42 @@ const submitSurveyResponse = async (req, res) => {
         }
       }
     }
-    // 5점 척도(ABCDE) 통계 누적
-    if (data.answer_type === 'type_5') {
-      for (const part of ['T1', 'T21']) {
-        if (data.answers[part]) {
-          for (const [qid, value] of Object.entries(data.answers[part])) {
-            // ABCDE → 1~5로 변환
-            const scoreMap = { A: 1, B: 2, C: 3, D: 4, E: 5 };
-            const score = scoreMap[value];
-            if (score === undefined) continue;
-
-            if (!updatedStats.question_stats[qid]) {
-              updatedStats.question_stats[qid] = { count: 0, mean: 0, stddev: 0, M2: 0 };
-            }
-            const stat = updatedStats.question_stats[qid];
-
-            let prevCount = stat.count || 0;
-            const prevMean = stat.mean || 0;
-            const prevM2 = stat.M2 || 0;
-
-            const newCount = prevCount + 1;
-            const delta = score - prevMean;
-            const newMean = prevMean + delta / newCount;
-            const newM2 = prevM2 + delta * (score - newMean);
-            const newStddev = newCount > 1 ? Math.sqrt(newM2 / (newCount - 1)) : 0;
-
-            stat.count = newCount;
-            stat.mean = newMean;
-            stat.stddev = newStddev;
-            stat.M2 = newM2;
-          }
-        }
+    // T1, T21 그룹별 통계 누적
+    // 각 응답자의 그룹 내 질문 정규화 점수 평균 → 그룹 단위 Welford 누적
+    if (!updatedStats.group_stats) updatedStats.group_stats = {};
+    const groupScores = {}; // { 'T1_A': [0.75, 0.25, ...], 'T21_L': [...], ... }
+    for (const [part, prefix] of [['T1', 'T1'], ['T21', 'T21']]) {
+      if (!data.answers[part]) continue;
+      for (const [qid, value] of Object.entries(data.answers[part])) {
+        const match = qid.match(new RegExp(`^${prefix}_([A-Z])`));
+        if (!match) continue;
+        const groupKey = `${prefix}_${match[1]}`;
+        const score = normalizeScore(value, data.answer_type);
+        if (score === null) continue;
+        if (!groupScores[groupKey]) groupScores[groupKey] = [];
+        groupScores[groupKey].push(score);
       }
     }
-    // [디버깅] 갱신된 통계치 출력
-    // console.log('==== 갱신된 통계치(T23, T3) ====');
-    // Object.entries(updatedStats.question_stats || {}).forEach(([k, v]) => {
-    //   if (k.startsWith('T23_') || k.startsWith('T3_')) {
-    //     console.log(k, v);
-    //   }
-    // });
+    for (const [groupKey, scores] of Object.entries(groupScores)) {
+      if (scores.length === 0) continue;
+      const personGroupMean = scores.reduce((a, b) => a + b, 0) / scores.length;
+      if (!updatedStats.group_stats[groupKey]) {
+        updatedStats.group_stats[groupKey] = { count: 0, mean: 0, stddev: 0, M2: 0 };
+      }
+      const stat = updatedStats.group_stats[groupKey];
+      const prevCount = stat.count || 0;
+      const prevMean = stat.mean || 0;
+      const prevM2 = stat.M2 || 0;
+      const newCount = prevCount + 1;
+      const delta = personGroupMean - prevMean;
+      const newMean = prevMean + delta / newCount;
+      const newM2 = prevM2 + delta * (personGroupMean - newMean);
+      const newStddev = newCount > 1 ? Math.sqrt(newM2 / (newCount - 1)) : 0;
+      stat.count = newCount;
+      stat.mean = newMean;
+      stat.stddev = newStddev;
+      stat.M2 = newM2;
+    }
     // 빈 객체만 남은 question_stats 항목 삭제 (견고하게)
     const emptyKeys = Object.entries(updatedStats.question_stats)
       .filter(([_, stat]) => stat && typeof stat === 'object' && Object.keys(stat).length === 0)
@@ -334,10 +330,86 @@ const submitSurveyResponse = async (req, res) => {
   }
 };
 
-// 설문 결과 조회 (GET)
-const getSurveyResult = async (req, res) => {
-  // TODO: 설문 결과 반환
-  res.json({ message: '설문 결과 반환 (임시)' });
+// 설문 결과 보고서 조회 (POST) - survey_id를 body로 받아 FE용 가공 결과 반환
+const getSurveyReport = async (req, res) => {
+  try {
+    const { survey_id } = req.body;
+    if (!survey_id) {
+      return res.status(400).json({ success: false, error: 'survey_id는 필수입니다.' });
+    }
+
+    // 1. 응답 원본 조회
+    const result = await SurveyResult.findOne({ survey_id }).lean();
+    if (!result) {
+      return res.status(404).json({ success: false, error: '해당 survey_id의 응답이 존재하지 않습니다.' });
+    }
+
+    const answers = result.answers;
+    const answer_type = result.raw_payload?.answer_type;
+
+    // 2. 최신 통계치 조회
+    const statistics = await SurveyStatistics.findOne({}).sort({ generated_at: -1 }).lean();
+    const groupStats = statistics?.group_stats || {};
+
+    // 3. T1, T21 그룹별 결과 계산
+    const buildGroupResult = (part, groups) => {
+      const out = {};
+      for (const g of groups) {
+        const groupKey = `${part}_${g}`;
+        const qids = Object.keys(answers[part] || {}).filter(qid => qid.startsWith(`${groupKey}`));
+        if (qids.length === 0) continue;
+
+        // 유저의 그룹 내 정규화 점수 평균
+        const scores = qids.map(qid => normalizeScore(answers[part][qid], answer_type)).filter(s => s !== null);
+        const userMean = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+
+        // 통계치 평균, 상위%
+        const stat = groupStats[groupKey];
+        const popMean = stat?.mean ?? null;
+        const popStddev = stat?.stddev ?? null;
+        const topPercent = (userMean !== null && popMean !== null && popStddev !== null)
+          ? Math.round((1 - normalCDF(popMean, popStddev, userMean)) * 1000) / 10
+          : null;
+
+        out[g] = {
+          user: userMean !== null ? Math.round(userMean * 1000) / 1000 : null,
+          average: popMean !== null ? Math.round(popMean * 1000) / 1000 : null,
+          top_percent: topPercent
+        };
+      }
+      return out;
+    };
+
+    const T1_GROUPS = ['E', 'C', 'S', 'A', 'I', 'R', 'G', 'U', 'T'];
+    const T21_GROUPS = ['T', 'L', 'M', 'B', 'S', 'I', 'N', 'A'];
+
+    // 4. T3 O/M/X 분류
+    const t3 = { O: [], M: [], X: [] };
+    for (const [itemId, value] of Object.entries(answers.T3 || {})) {
+      if (t3[value]) t3[value].push(itemId);
+    }
+
+    res.json({
+      success: true,
+      result: {
+        survey_id,
+        completed_at: result.raw_payload?.completed_at || null,
+        answer_type,
+        T1: buildGroupResult('T1', T1_GROUPS),
+        T21: buildGroupResult('T21', T21_GROUPS),
+        T22: { checked: answers.T22?.checked || [] },
+        T23: {
+          priority_1: answers.T23?.priority_1 || null,
+          priority_2: answers.T23?.priority_2 || null,
+          priority_3: answers.T23?.priority_3 || null
+        },
+        T3: t3
+      }
+    });
+  } catch (error) {
+    console.error('설문 결과 조회 오류:', error);
+    res.status(500).json({ success: false, error: '설문 결과 조회 중 오류가 발생했습니다', message: error.message });
+  }
 };
 
 // 설문 분석 결과 조회 (GET)
@@ -366,6 +438,42 @@ const updateSurveyStatistics = async (req, res) => {
     res.status(500).json({ success: false, error: '통계치 갱신 중 오류가 발생했습니다', message: error.message });
   }
 };
+
+// 정규분포 CDF: P(X <= x) — 상위% 계산에 사용
+// erf 근사: Abramowitz & Stegun (최대 오차 1.5e-7)
+function erf(x) {
+  const sign = x >= 0 ? 1 : -1;
+  x = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * x);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return sign * y;
+}
+function normalCDF(mean, stddev, x) {
+  if (stddev === 0) return x >= mean ? 1 : 0;
+  return 0.5 * (1 + erf((x - mean) / (stddev * Math.sqrt(2))));
+}
+
+// 응답값을 0~1로 정규화하는 함수
+// type_2 (OX): X=0.25, O=0.75 (극단 회피)
+// type_5 (ABCDE): 0, 0.25, 0.5, 0.75, 1.0
+// type_10 (0~9): raw / 9
+function normalizeScore(value, answer_type) {
+  if (answer_type === 'type_2') {
+    if (value === 'O') return 0.75;
+    if (value === 'X') return 0.25;
+    return null;
+  }
+  if (answer_type === 'type_5') {
+    const map = { A: 0, B: 0.25, C: 0.5, D: 0.75, E: 1 };
+    return map[value] ?? null;
+  }
+  if (answer_type === 'type_10') {
+    const raw = Number(value);
+    if (!isNaN(raw) && raw >= 0 && raw <= 9) return raw / 9;
+    return null;
+  }
+  return null;
+}
 
 // 시드 기반 Fisher-Yates 셔플 함수
 function seededShuffle(array, seed) {
@@ -398,45 +506,28 @@ function hashString(str) {
   return hash;
 }
 
-// 환산 로직 예시 (실제 변환 방식 구현)
+// 환산 로직: 정규화된 응답값을 모집단 통계 기반으로 환산
+// 공식: mean + (normalized - 0.5) * 2 * stddev
+// → normalized=0.0 : mean - stddev (가장 낮은 응답)
+// → normalized=0.5 : mean            (중간 응답)
+// → normalized=1.0 : mean + stddev  (가장 높은 응답)
 function convertAnswers(answers, statistics, answer_type) {
-  // Map 타입을 일반 객체로 변환
   const questionStats = (typeof statistics.question_stats?.entries === 'function')
     ? Object.fromEntries(statistics.question_stats.entries())
     : statistics.question_stats;
 
   const converted = {};
-  //console.log('convertAnswers called with:', { answer_type, answers, stats: Object.keys(questionStats) });
-  if (answer_type === 'type_2') {
-    // OX(2점 척도) 환산
-    for (const part of ['T1', 'T21']) {
-      if (!answers[part]) continue;
-      for (const [qid, value] of Object.entries(answers[part])) {
-        const stat = questionStats[qid];
-        if (stat && stat.mean !== undefined && stat.stddev !== undefined) {
-          converted[qid] = stat.mean - stat.stddev;
-        }
-      }
-    }
-  } else if (answer_type === 'type_5') {
-    // ABCDE(5점 척도) 환산
-    for (const part of ['T1', 'T21']) {
-      if (!answers[part]) continue;
-      for (const [qid, value] of Object.entries(answers[part])) {
-        const stat = questionStats[qid];
-        if (stat && stat.mean !== undefined && stat.stddev !== undefined) {
-          let score = null;
-          if (value === 'A') score = stat.mean - 2 * stat.stddev;
-          else if (value === 'B') score = stat.mean - stat.stddev;
-          else if (value === 'C') score = stat.mean;
-          else if (value === 'D') score = stat.mean + stat.stddev;
-          else if (value === 'E') score = stat.mean + 2 * stat.stddev;
-          converted[qid] = score;
-        }
+  for (const part of ['T1', 'T21']) {
+    if (!answers[part]) continue;
+    for (const [qid, value] of Object.entries(answers[part])) {
+      const normalized = normalizeScore(value, answer_type);
+      if (normalized === null) continue;
+      const stat = questionStats[qid];
+      if (stat && stat.mean !== undefined && stat.stddev !== undefined) {
+        converted[qid] = stat.mean + (normalized - 0.5) * 2 * stat.stddev;
       }
     }
   }
-  // type_10 등 기타 척도는 환산하지 않음
   return converted;
 }
 
@@ -471,7 +562,7 @@ const getSurveyStatistics = async (req, res) => {
 module.exports = {
   getSurveyForm,
   submitSurveyResponse,
-  getSurveyResult,
+  getSurveyReport,
   getSurveyAnalysis,
   updateSurveyStatistics,
   getSurveyStatistics,
