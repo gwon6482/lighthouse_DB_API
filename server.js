@@ -25,6 +25,7 @@ connectDB();
 // 미들웨어
 app.use(helmet({
   contentSecurityPolicy: false,
+  strictTransportSecurity: false,
 }));
 app.use(cors());
 app.use(morgan('combined'));
