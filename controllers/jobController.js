@@ -60,4 +60,45 @@ const getJobByCode = async (req, res, next) => {
   }
 };
 
-module.exports = { getJobByCode };
+const searchJobByName = async (req, res, next) => {
+  try {
+    const { name } = req.query;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'name 쿼리 파라미터가 필요합니다.'
+      });
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        error: '데이터베이스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.'
+      });
+    }
+
+    const Job = getJobModel();
+    const jobs = await Job.find(
+      { title: { $regex: name.trim(), $options: 'i' } },
+      { jobCode: 1, title: 1, 'classification.primary': 1, 'classification.secondary': 1, _id: 0 }
+    ).lean();
+
+    if (jobs.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `'${name}'에 해당하는 직업을 찾을 수 없습니다.`
+      });
+    }
+
+    res.json({
+      success: true,
+      count: jobs.length,
+      data: jobs
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getJobByCode, searchJobByName };

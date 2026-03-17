@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getJobByCode } = require('../controllers/jobController');
+const { getJobByCode, searchJobByName } = require('../controllers/jobController');
 
 /**
  * @swagger
@@ -56,6 +56,52 @@ const { getJobByCode } = require('../controllers/jobController');
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
+/**
+ * @swagger
+ * /api/job/search:
+ *   get:
+ *     summary: 직업명으로 직업 코드 검색
+ *     description: 직업명(일부 포함)으로 검색하여 jobCode 목록을 반환합니다.
+ *     tags: [Job]
+ *     parameters:
+ *       - in: query
+ *         name: name
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 검색할 직업명 (부분 일치)
+ *         example: "공무원"
+ *     responses:
+ *       200:
+ *         description: 검색 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       jobCode:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       classification:
+ *                         type: object
+ *       404:
+ *         description: 검색 결과 없음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/search', searchJobByName);
 router.get('/:jobCode', getJobByCode);
 
 module.exports = router;
