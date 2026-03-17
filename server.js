@@ -23,7 +23,9 @@ const app = express();
 connectDB();
 
 // 미들웨어
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
