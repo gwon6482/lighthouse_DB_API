@@ -15,6 +15,7 @@ const swaggerSpecs = require('./config/swagger');
 // 라우터 가져오기
 const adminRoutes = require('./routes/admin');
 const surveyRoutes = require('./routes/survey');
+const jobRoutes = require('./routes/job');
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
 // 라우터
 app.use('/api/admin', adminRoutes);
 app.use('/api/survey', surveyRoutes);
+app.use('/api/job', jobRoutes);
 
 // 기본 라우트
 /**
