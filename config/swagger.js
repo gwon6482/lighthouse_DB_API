@@ -18,7 +18,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
+        url: 'http://218.155.36.75:3000',
         description: '개발 서버'
       },
       {
