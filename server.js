@@ -32,17 +32,23 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Swagger UI 설정
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Lighthouse DB API Documentation',
-  customfavIcon: '/favicon.ico',
-  swaggerOptions: {
-    docExpansion: 'list',
-    filter: true,
-    showRequestHeaders: true
-  }
-}));
+// Swagger UI 설정 (요청 host 기반으로 동적 서버 URL 설정)
+app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
+  const dynamicSpecs = {
+    ...swaggerSpecs,
+    servers: [{ url: `${req.protocol}://${req.get('host')}`, description: '현재 서버' }]
+  };
+  swaggerUi.setup(dynamicSpecs, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Lighthouse DB API Documentation',
+    customfavIcon: '/favicon.ico',
+    swaggerOptions: {
+      docExpansion: 'list',
+      filter: true,
+      showRequestHeaders: true
+    }
+  })(req, res, next);
+});
 
 // 라우터
 app.use('/api/admin', adminRoutes);
