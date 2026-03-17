@@ -22,7 +22,8 @@ const options = {
         description: '개발 서버'
       },
       {
-        url: 'https://api.lighthouse.com',
+        //url: 'https://api.lighthouse.com',
+        url: 'http://218.155.36.75:3000',
         description: '프로덕션 서버'
       }
     ],
