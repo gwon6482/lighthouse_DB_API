@@ -49,6 +49,21 @@ const { getJobByCode, searchJobByName } = require('../controllers/jobController'
  *                         type: string
  *                     details:
  *                       type: object
+ *                     salary:
+ *                       type: object
+ *                       properties:
+ *                         lower:
+ *                           type: number
+ *                           description: 하위(25%) 임금 (만원)
+ *                         median:
+ *                           type: number
+ *                           description: 중위값 임금 (만원)
+ *                         upper:
+ *                           type: number
+ *                           description: 상위(25%) 임금 (만원)
+ *                     jobSatisfaction:
+ *                       type: number
+ *                       description: 직업만족도 (백점 기준, 예 80.3)
  *       404:
  *         description: 해당 jobCode의 직업을 찾을 수 없음
  *         content:
