@@ -44,7 +44,7 @@ const { getSurveyElements, getSurveyElementByCode, getCareerAttributes, getCaree
  *         name: parent_code
  *         schema:
  *           type: string
- *         description: 상위 요소 코드 (예: E)
+ *         description: "상위 요소 코드 (예: E)"
  *     responses:
  *       200:
  *         description: 조회 성공
@@ -99,7 +99,7 @@ router.get('/survey-elements', getSurveyElements);
  *         required: true
  *         schema:
  *           type: string
- *         description: 요소 코드 (예: A, A2)
+ *         description: "요소 코드 (예: A, A2)"
  *     responses:
  *       200:
  *         description: 조회 성공
@@ -148,7 +148,7 @@ router.get('/career-attributes', getCareerAttributes);
  *         required: true
  *         schema:
  *           type: string
- *         description: 속성 코드 (예: AB01, KN05, I)
+ *         description: "속성 코드 (예: AB01, KN05, I)"
  *     responses:
  *       200:
  *         description: 조회 성공
