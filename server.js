@@ -41,7 +41,7 @@ app.get('/api-docs/swagger.json', (req, res) => {
 });
 
 // Swagger UI (CDN 기반 - 로컬/Vercel 모두 호환)
-app.get('/api-docs', (req, res) => {
+app.get(['/api-docs', '/api-docs/'], (req, res) => {
   res.send(`<!DOCTYPE html>
 <html>
 <head>
