@@ -9,7 +9,6 @@ const connectDB = require('./config/database');
 const errorHandler = require('./middleware/error');
 
 // Swagger 설정
-const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./config/swagger');
 
 // 라우터 가져오기
@@ -33,22 +32,44 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Swagger UI 설정 (요청 host 기반으로 동적 서버 URL 설정)
-app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
-  const dynamicSpecs = {
+// Swagger JSON 스펙 (동적 서버 URL)
+app.get('/api-docs/swagger.json', (req, res) => {
+  res.json({
     ...swaggerSpecs,
     servers: [{ url: `${req.protocol}://${req.get('host')}`, description: '현재 서버' }]
-  };
-  swaggerUi.setup(dynamicSpecs, {
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Lighthouse DB API Documentation',
-    customfavIcon: '/favicon.ico',
-    swaggerOptions: {
+  });
+});
+
+// Swagger UI (CDN 기반 - 로컬/Vercel 모두 호환)
+app.get('/api-docs', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Lighthouse DB API Documentation</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style>.swagger-ui .topbar { display: none }</style>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+<script>
+  window.onload = function() {
+    SwaggerUIBundle({
+      url: '/api-docs/swagger.json',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      layout: 'StandaloneLayout',
       docExpansion: 'list',
       filter: true,
       showRequestHeaders: true
-    }
-  })(req, res, next);
+    });
+  }
+</script>
+</body>
+</html>`);
 });
 
 // 라우터
