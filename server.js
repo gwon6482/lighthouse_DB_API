@@ -219,26 +219,30 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log('🚀 Lighthouse DB API 서버가 시작되었습니다!');
-  console.log(`📍 서버 주소: http://localhost:${PORT}`);
-  console.log(`📚 API 문서: http://localhost:${PORT}/api-docs`);
-  console.log(`🌍 환경: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`⏰ 시작 시간: ${new Date().toLocaleString('ko-KR')}`);
-  console.log('📋 사용 가능한 엔드포인트:');
-  console.log(`   - GET  / (기본 정보)`);
-  console.log(`   - GET  /api/health (헬스 체크)`);
-  console.log(`   - GET  /api/info (서버 정보)`);
-  console.log(`   - GET  /api-docs (API 문서)`);
-  console.log('🔧 관리자 API:');
-  console.log(`   - GET    /api/admin/questions/stats (전체 통계)`);
-  console.log(`   - GET    /api/admin/questions/:collection_type (컬렉션별 질문 목록)`);
-  console.log(`   - GET    /api/admin/questions/:collection_type/stats (컬렉션별 통계)`);
-  console.log(`   - GET    /api/admin/questions/:collection_type/:id (개별 질문)`);
-  console.log(`   - POST   /api/admin/questions/:collection_type (질문 생성)`);
-  console.log(`   - PUT    /api/admin/questions/:collection_type/:id (질문 수정)`);
-  console.log(`   - DELETE /api/admin/questions/:collection_type/:id (질문 삭제)`);
-  console.log(`   - PATCH  /api/admin/questions/:collection_type/:id/restore (질문 복구)`);
-  console.log('📊 지원 컬렉션: T1_personality, T2_1_talent, T2_2_interest, T2_3_values, T3_environmental');
-  console.log('');
-}); 
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log('🚀 Lighthouse DB API 서버가 시작되었습니다!');
+    console.log(`📍 서버 주소: http://localhost:${PORT}`);
+    console.log(`📚 API 문서: http://localhost:${PORT}/api-docs`);
+    console.log(`🌍 환경: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`⏰ 시작 시간: ${new Date().toLocaleString('ko-KR')}`);
+    console.log('📋 사용 가능한 엔드포인트:');
+    console.log(`   - GET  / (기본 정보)`);
+    console.log(`   - GET  /api/health (헬스 체크)`);
+    console.log(`   - GET  /api/info (서버 정보)`);
+    console.log(`   - GET  /api-docs (API 문서)`);
+    console.log('🔧 관리자 API:');
+    console.log(`   - GET    /api/admin/questions/stats (전체 통계)`);
+    console.log(`   - GET    /api/admin/questions/:collection_type (컬렉션별 질문 목록)`);
+    console.log(`   - GET    /api/admin/questions/:collection_type/stats (컬렉션별 통계)`);
+    console.log(`   - GET    /api/admin/questions/:collection_type/:id (개별 질문)`);
+    console.log(`   - POST   /api/admin/questions/:collection_type (질문 생성)`);
+    console.log(`   - PUT    /api/admin/questions/:collection_type/:id (질문 수정)`);
+    console.log(`   - DELETE /api/admin/questions/:collection_type/:id (질문 삭제)`);
+    console.log(`   - PATCH  /api/admin/questions/:collection_type/:id/restore (질문 복구)`);
+    console.log('📊 지원 컬렉션: T1_personality, T2_1_talent, T2_2_interest, T2_3_values, T3_environmental');
+    console.log('');
+  });
+}
+
+module.exports = app;

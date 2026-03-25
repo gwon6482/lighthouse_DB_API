@@ -1,9 +1,14 @@
 const mongoose = require('mongoose');
 
+let isConnected = false;
+
 const connectDB = async () => {
+  if (isConnected) return;
+
   try {
     // 메인 MongoDB 연결
     const conn = await mongoose.connect(process.env.MONGODB_URI);
+    isConnected = true;
     console.log(`✅ MongoDB 연결 성공: ${conn.connection.host}`);
     
     // job_data 데이터베이스 연결 테스트
