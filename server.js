@@ -16,6 +16,7 @@ const swaggerSpecs = require('./config/swagger');
 const adminRoutes = require('./routes/admin');
 const surveyRoutes = require('./routes/survey');
 const jobRoutes = require('./routes/job');
+const referenceRoutes = require('./routes/reference');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/survey', surveyRoutes);
 app.use('/api/job', jobRoutes);
+app.use('/api/reference', referenceRoutes);
 
 // 기본 라우트
 /**

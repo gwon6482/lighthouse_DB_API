@@ -67,5 +67,6 @@ Thumbs.db
 
 # Temporary files
 temp/
+docs/
 tmp/ lighthouse-mongodb-with-data.tar
 lighthouse-mongodb-with-data.tar

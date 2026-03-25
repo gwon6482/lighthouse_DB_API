@@ -17,6 +17,10 @@ const connectDB = async () => {
     // survey_data 데이터베이스 연결 테스트
     const surveyDataDb = mongoose.connection.useDb(process.env.SURVEY_DATA_DB || 'survey_data');
     console.log(`✅ survey_data 데이터베이스 연결 확인: ${process.env.SURVEY_DATA_DB || 'survey_data'}`);
+
+    // reference_data 데이터베이스 연결 테스트
+    const referenceDataDb = mongoose.connection.useDb(process.env.REFERENCE_DATA_DB || 'reference_data');
+    console.log(`✅ reference_data 데이터베이스 연결 확인: ${process.env.REFERENCE_DATA_DB || 'reference_data'}`);
     
     // 데이터베이스 상태 확인
     const adminDb = mongoose.connection.db.admin();
