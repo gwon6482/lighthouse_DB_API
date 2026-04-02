@@ -101,4 +101,56 @@ const searchJobByName = async (req, res, next) => {
   }
 };
 
-module.exports = { getJobByCode, searchJobByName };
+const getJobList = async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        error: '데이터베이스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.'
+      });
+    }
+
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 50;
+    if (limit > 100) limit = 100;
+    if (page < 1) page = 1;
+
+    const filter = {};
+    if (req.query.primary) filter['classification.primary'] = req.query.primary;
+    if (req.query.secondary) filter['classification.secondary'] = req.query.secondary;
+    if (req.query.major) filter['relatedMajors'] = req.query.major;
+
+    const Job = getJobModel();
+    const total = await Job.countDocuments(filter);
+    const jobs = await Job.find(filter, {
+      jobCode: 1,
+      title: 1,
+      'classification.primary': 1,
+      'classification.secondary': 1,
+      salary: 1,
+      jobSatisfaction: 1,
+      relatedMajors: 1,
+      relatedCertifications: 1,
+      _id: 0
+    })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    res.json({
+      success: true,
+      count: total,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
+      },
+      data: jobs
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getJobByCode, searchJobByName, getJobList };

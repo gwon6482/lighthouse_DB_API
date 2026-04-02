@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getJobByCode, searchJobByName } = require('../controllers/jobController');
+const { getJobByCode, searchJobByName, getJobList } = require('../controllers/jobController');
 
 /**
  * @swagger
@@ -116,6 +116,103 @@ const { getJobByCode, searchJobByName } = require('../controllers/jobController'
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
+/**
+ * @swagger
+ * /api/job/list:
+ *   get:
+ *     summary: 전체 직업 목록 조회 (페이지네이션)
+ *     description: 전체 직업 목록을 페이지네이션으로 조회합니다. 대분류/소분류/관련학과 필터를 지원합니다.
+ *     tags: [Job]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 페이지 번호
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *         description: 페이지당 항목 수 (최대 100)
+ *       - in: query
+ *         name: primary
+ *         schema:
+ *           type: string
+ *         description: 대분류 필터 (classification.primary 일치)
+ *       - in: query
+ *         name: secondary
+ *         schema:
+ *           type: string
+ *         description: 소분류 필터 (classification.secondary 일치)
+ *       - in: query
+ *         name: major
+ *         schema:
+ *           type: string
+ *         description: 관련학과 필터 (relatedMajors 배열에 포함)
+ *     responses:
+ *       200:
+ *         description: 직업 목록 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                   description: 전체 항목 수
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     current_page:
+ *                       type: integer
+ *                     total_pages:
+ *                       type: integer
+ *                     total_items:
+ *                       type: integer
+ *                     items_per_page:
+ *                       type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       jobCode:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       classification:
+ *                         type: object
+ *                         properties:
+ *                           primary:
+ *                             type: string
+ *                           secondary:
+ *                             type: string
+ *                       salary:
+ *                         type: object
+ *                         properties:
+ *                           lower:
+ *                             type: number
+ *                           median:
+ *                             type: number
+ *                           upper:
+ *                             type: number
+ *                       jobSatisfaction:
+ *                         type: number
+ *                       relatedMajors:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       relatedCertifications:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ */
+router.get('/list', getJobList);
 router.get('/search', searchJobByName);
 router.get('/:jobCode', getJobByCode);
 
