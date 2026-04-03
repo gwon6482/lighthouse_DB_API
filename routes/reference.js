@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getSurveyElements, getSurveyElementByCode, getCareerAttributes, getCareerAttributeByCode } = require('../controllers/referenceController');
+const {
+  getSurveyElements, getSurveyElementByCode, getCareerAttributes, getCareerAttributeByCode,
+  createSurveyElement, updateSurveyElement, deleteSurveyElement,
+  createCareerAttribute, updateCareerAttribute, deleteCareerAttribute
+} = require('../controllers/referenceController');
 
 /**
  * @swagger
@@ -84,7 +88,45 @@ const { getSurveyElements, getSurveyElementByCode, getCareerAttributes, getCaree
  *                         type: string
  *                         nullable: true
  */
+/**
+ * @swagger
+ * /api/reference/survey-elements:
+ *   post:
+ *     summary: 설문 요소 생성
+ *     tags: [Reference]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [test_code, area, level, code, name]
+ *             properties:
+ *               test_code:
+ *                 type: string
+ *                 enum: [T1, T21, T22, T23, T3]
+ *               area:
+ *                 type: string
+ *                 enum: [personality, talent, interest, values, environmental]
+ *               level:
+ *                 type: string
+ *                 enum: [upper, sub, item]
+ *               code:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               definition:
+ *                 type: string
+ *               parent_code:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: 생성 성공
+ *       409:
+ *         description: code 중복
+ */
 router.get('/survey-elements', getSurveyElements);
+router.post('/survey-elements', createSurveyElement);
 
 /**
  * @swagger
@@ -106,7 +148,48 @@ router.get('/survey-elements', getSurveyElements);
  *       404:
  *         description: 해당 코드 없음
  */
+/**
+ * @swagger
+ * /api/reference/survey-elements/{code}:
+ *   put:
+ *     summary: 설문 요소 수정
+ *     description: code 자체는 변경 불가. 나머지 필드만 수정 가능.
+ *     tags: [Reference]
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ *       404:
+ *         description: 해당 code 없음
+ *   delete:
+ *     summary: 설문 요소 삭제
+ *     tags: [Reference]
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ *       404:
+ *         description: 해당 code 없음
+ */
 router.get('/survey-elements/:code', getSurveyElementByCode);
+router.put('/survey-elements/:code', updateSurveyElement);
+router.delete('/survey-elements/:code', deleteSurveyElement);
 
 /**
  * @swagger
@@ -134,7 +217,37 @@ router.get('/survey-elements/:code', getSurveyElementByCode);
  *       200:
  *         description: 조회 성공
  */
+/**
+ * @swagger
+ * /api/reference/career-attributes:
+ *   post:
+ *     summary: 진로백과 속성 생성
+ *     tags: [Reference]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [category, code, name, definition]
+ *             properties:
+ *               category:
+ *                 type: string
+ *                 enum: [work_activity, ability, knowledge, work_environment, personality, interest, value]
+ *               code:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               definition:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: 생성 성공
+ *       409:
+ *         description: code 중복
+ */
 router.get('/career-attributes', getCareerAttributes);
+router.post('/career-attributes', createCareerAttribute);
 
 /**
  * @swagger
@@ -155,6 +268,47 @@ router.get('/career-attributes', getCareerAttributes);
  *       404:
  *         description: 해당 코드 없음
  */
+/**
+ * @swagger
+ * /api/reference/career-attributes/{code}:
+ *   put:
+ *     summary: 진로백과 속성 수정
+ *     description: code 자체는 변경 불가. 나머지 필드만 수정 가능.
+ *     tags: [Reference]
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ *       404:
+ *         description: 해당 code 없음
+ *   delete:
+ *     summary: 진로백과 속성 삭제
+ *     tags: [Reference]
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 삭제 성공
+ *       404:
+ *         description: 해당 code 없음
+ */
 router.get('/career-attributes/:code', getCareerAttributeByCode);
+router.put('/career-attributes/:code', updateCareerAttribute);
+router.delete('/career-attributes/:code', deleteCareerAttribute);
 
 module.exports = router;

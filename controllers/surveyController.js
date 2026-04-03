@@ -414,8 +414,146 @@ const getSurveyReport = async (req, res) => {
 
 // 설문 분석 결과 조회 (GET)
 const getSurveyAnalysis = async (req, res) => {
-  // TODO: 설문 분석 결과 반환
-  res.json({ message: '설문 분석 결과 반환 (임시)' });
+  try {
+    const { survey_id } = req.params;
+
+    const result = await SurveyResult.findOne({ survey_id }).lean();
+    if (!result) {
+      return res.status(404).json({ success: false, error: '해당 survey_id의 응답이 존재하지 않습니다.' });
+    }
+
+    const answers = result.answers;
+    const answer_type = result.raw_payload?.answer_type;
+
+    // 최신 통계
+    const statistics = await SurveyStatistics.findOne({}).sort({ generated_at: -1 }).lean();
+    const groupStats = statistics?.group_stats || {};
+
+    // survey_elements 코드-이름 매핑 로드 (T1, T21)
+    const SurveyElement = require('../models/SurveyElement');
+    const [t1Elements, t21Elements] = await Promise.all([
+      SurveyElement.find({ test_code: 'T1', level: 'upper' }, { code: 1, name: 1, _id: 0 }).lean(),
+      SurveyElement.find({ test_code: 'T21', level: 'upper' }, { code: 1, name: 1, _id: 0 }).lean()
+    ]);
+    const t1NameMap = Object.fromEntries(t1Elements.map(e => [e.code, e.name]));
+    const t21NameMap = Object.fromEntries(t21Elements.map(e => [e.code, e.name]));
+
+    // T23 이름 매핑 — T2_3_values 컬렉션에서 value_id 기준 조회
+    const T23Model = getQuestionModel('T2_3_values');
+    const t23All = await T23Model.find({}, { value_id: 1, value_name: 1, _id: 0 }).lean();
+    const t23NameMap = Object.fromEntries(t23All.map(e => [e.value_id, e.value_name]));
+
+    // T1/T21 그룹 점수 계산 헬퍼
+    const calcGroupScores = (part, groups, nameMap) => {
+      return groups.map(g => {
+        const groupKey = `${part}_${g}`;
+        const qids = Object.keys(answers[part] || {}).filter(qid => qid.startsWith(groupKey));
+        if (qids.length === 0) return null;
+
+        const scores = qids.map(qid => normalizeScore(answers[part][qid], answer_type)).filter(s => s !== null);
+        const userMean = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+
+        const stat = groupStats[groupKey];
+        const popMean = stat?.mean ?? null;
+        const popStddev = stat?.stddev ?? null;
+        const topPercent = (userMean !== null && popMean !== null && popStddev !== null)
+          ? Math.round((1 - normalCDF(popMean, popStddev, userMean)) * 1000) / 10
+          : null;
+
+        return {
+          code: g,
+          name: nameMap[g] || g,
+          score: userMean !== null ? Math.round(userMean * 1000) / 1000 : null,
+          average: popMean !== null ? Math.round(popMean * 1000) / 1000 : null,
+          top_percent: topPercent
+        };
+      }).filter(Boolean).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    };
+
+    const personalityScores = calcGroupScores('T1', ['E','C','S','A','I','R','G','U','T'], t1NameMap);
+    const talentScores = calcGroupScores('T21', ['T','L','M','B','S','I','N','A'], t21NameMap);
+
+    // T22 관심 분야 — checked 항목을 DB에서 이름 조회 후 카테고리별 그룹화
+    const T22Model = getQuestionModel('T2_2_interest');
+    const checkedIds = answers.T22?.checked || [];
+    let interest = { total: checkedIds.length, by_category: {} };
+    if (checkedIds.length > 0) {
+      const t22Items = await T22Model.find(
+        { field_id: { $in: checkedIds } },
+        { field_id: 1, field_name: 1, field_definition: 1, upper_field_code: 1, upper_field_name: 1, _id: 0 }
+      ).lean();
+      for (const item of t22Items) {
+        if (!interest.by_category[item.upper_field_code]) {
+          interest.by_category[item.upper_field_code] = { name: item.upper_field_name, items: [] };
+        }
+        interest.by_category[item.upper_field_code].items.push({
+          field_id: item.field_id,
+          name: item.field_name,
+          definition: item.field_definition
+        });
+      }
+    }
+
+    // T23 가치관 — priority 코드를 이름으로 변환
+    const values = {};
+    for (const p of ['priority_1', 'priority_2', 'priority_3']) {
+      const code = answers.T23?.[p];
+      values[p] = code ? { code, name: t23NameMap[code] || code } : null;
+    }
+
+    // T3 환경 — O(선호)/M(보통) 항목을 DB에서 이름 조회 후 카테고리별 그룹화
+    const T3Model = getQuestionModel('T3_environmental');
+    const t3Answers = answers.T3 || {};
+    const preferredIds = Object.entries(t3Answers).filter(([, v]) => v === 'O').map(([k]) => k);
+    const neutralIds = Object.entries(t3Answers).filter(([, v]) => v === 'M').map(([k]) => k);
+
+    const allT3Ids = [...preferredIds, ...neutralIds];
+    const t3Items = allT3Ids.length > 0
+      ? await T3Model.find(
+          { item_id: { $in: allT3Ids } },
+          { item_id: 1, item_name: 1, category_code: 1, category_name: 1, sub_category_name: 1, _id: 0 }
+        ).lean()
+      : [];
+
+    const t3ItemMap = Object.fromEntries(t3Items.map(i => [i.item_id, i]));
+    const t3ByCategory = {};
+    const groupT3 = (ids, type) => {
+      for (const id of ids) {
+        const item = t3ItemMap[id];
+        if (!item) continue;
+        if (!t3ByCategory[item.category_code]) {
+          t3ByCategory[item.category_code] = { name: item.category_name, preferred: [], neutral: [] };
+        }
+        t3ByCategory[item.category_code][type].push({
+          item_id: item.item_id,
+          name: item.item_name,
+          sub_category: item.sub_category_name
+        });
+      }
+    };
+    groupT3(preferredIds, 'preferred');
+    groupT3(neutralIds, 'neutral');
+
+    res.json({
+      success: true,
+      survey_id,
+      answer_type,
+      analysis: {
+        personality: { top3: personalityScores.slice(0, 3), all: personalityScores },
+        talent: { top3: talentScores.slice(0, 3), all: talentScores },
+        interest,
+        values,
+        environment: {
+          preferred_count: preferredIds.length,
+          neutral_count: neutralIds.length,
+          by_category: t3ByCategory
+        }
+      }
+    });
+  } catch (error) {
+    console.error('설문 분석 조회 오류:', error);
+    res.status(500).json({ success: false, error: '설문 분석 조회 중 오류가 발생했습니다', message: error.message });
+  }
 };
 
 // 통계치 갱신(누적) API 예시
@@ -534,11 +672,30 @@ function convertAnswers(answers, statistics, answer_type) {
 // 설문 결과 리스트 조회 (GET)
 const getSurveyResultList = async (req, res) => {
   try {
-    const results = await SurveyResult.find({})
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 20;
+    if (limit > 100) limit = 100;
+    if (page < 1) page = 1;
+
+    const total = await SurveyResult.countDocuments();
+    const results = await SurveyResult.find({}, {
+      survey_id: 1, submitted_at: 1, 'raw_payload.completed_at': 1, 'raw_payload.answer_type': 1, _id: 0
+    })
       .sort({ submitted_at: -1 })
-      .limit(20)
+      .skip((page - 1) * limit)
+      .limit(limit)
       .lean();
-    res.json({ success: true, results });
+
+    res.json({
+      success: true,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
+      },
+      results
+    });
   } catch (error) {
     console.error('설문 결과 리스트 조회 오류:', error);
     res.status(500).json({ success: false, error: '설문 결과 리스트 조회 중 오류가 발생했습니다', message: error.message });
