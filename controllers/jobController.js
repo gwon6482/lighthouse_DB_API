@@ -153,4 +153,131 @@ const getJobList = async (req, res, next) => {
   }
 };
 
-module.exports = { getJobByCode, searchJobByName, getJobList };
+const createJob = async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ success: false, error: '데이터베이스에 연결할 수 없습니다.' });
+    }
+
+    const { jobCode } = req.body;
+    if (!jobCode || !/^\d{6}$/.test(jobCode)) {
+      return res.status(400).json({ success: false, error: 'jobCode는 6자리 숫자여야 합니다.' });
+    }
+
+    const Job = getJobModel();
+    const existing = await Job.findOne({ jobCode }).lean();
+    if (existing) {
+      return res.status(409).json({ success: false, error: `jobCode '${jobCode}'가 이미 존재합니다.` });
+    }
+
+    const job = await Job.create(req.body);
+    res.status(201).json({ success: true, data: job });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateJob = async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ success: false, error: '데이터베이스에 연결할 수 없습니다.' });
+    }
+
+    const { jobCode } = req.params;
+    if (!/^\d{6}$/.test(jobCode)) {
+      return res.status(400).json({ success: false, error: 'jobCode 형식이 올바르지 않습니다.' });
+    }
+
+    // jobCode 자체는 변경 불가
+    delete req.body.jobCode;
+
+    const Job = getJobModel();
+    const updated = await Job.findOneAndUpdate(
+      { jobCode },
+      { $set: req.body },
+      { new: true, lean: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, error: `jobCode '${jobCode}'에 해당하는 직업을 찾을 수 없습니다.` });
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteJob = async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ success: false, error: '데이터베이스에 연결할 수 없습니다.' });
+    }
+
+    const { jobCode } = req.params;
+    if (!/^\d{6}$/.test(jobCode)) {
+      return res.status(400).json({ success: false, error: 'jobCode 형식이 올바르지 않습니다.' });
+    }
+
+    const Job = getJobModel();
+    const deleted = await Job.findOneAndDelete({ jobCode }).lean();
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: `jobCode '${jobCode}'에 해당하는 직업을 찾을 수 없습니다.` });
+    }
+
+    res.json({ success: true, message: `jobCode '${jobCode}' 직업이 삭제되었습니다.` });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getClassifications = async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ success: false, error: '데이터베이스에 연결할 수 없습니다.' });
+    }
+
+    const Job = getJobModel();
+    const jobs = await Job.find(
+      {},
+      { 'classification.primary': 1, 'classification.secondary': 1, _id: 0 }
+    ).lean();
+
+    const tree = {};
+    for (const { classification } of jobs) {
+      if (!classification) continue;
+      const { primary, secondary } = classification;
+      if (!primary) continue;
+      if (!tree[primary]) tree[primary] = new Set();
+      if (secondary) tree[primary].add(secondary.trim());
+    }
+
+    const result = {};
+    for (const [primary, secondaries] of Object.entries(tree)) {
+      result[primary] = [...secondaries].sort();
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMajors = async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ success: false, error: '데이터베이스에 연결할 수 없습니다.' });
+    }
+
+    const Job = getJobModel();
+    const majors = await Job.distinct('relatedMajors');
+    const filtered = majors.filter(m => m && m.trim() !== '').sort();
+
+    res.json({ success: true, count: filtered.length, data: filtered });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getJobByCode, searchJobByName, getJobList, createJob, updateJob, deleteJob, getClassifications, getMajors };
