@@ -70,3 +70,6 @@ temp/
 docs/
 tmp/ lighthouse-mongodb-with-data.tar
 lighthouse-mongodb-with-data.tar
+
+# Claude Code 대화 기록
+cc_logs/

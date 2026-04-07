@@ -46,9 +46,10 @@ const getSurveyForm = async (req, res) => {
     // 페이지 분할: 7,7,7,7,7,8
     const t1PageSizes = [7, 7, 7, 7, 7, 8];
     let t1Idx = 0;
+    let t1NumCounter = 1;
     const t1Pages = t1PageSizes.map((size, i) => {
-      const page = t1Questions.slice(t1Idx, t1Idx + size).map((q, idx) => ({
-        question_num: (idx + 1).toString(),
+      const page = t1Questions.slice(t1Idx, t1Idx + size).map((q) => ({
+        question_num: (t1NumCounter++).toString(),
         question_id: q.question_id,
         question_text: q.question_text
       }));
@@ -68,9 +69,10 @@ const getSurveyForm = async (req, res) => {
     // 페이지 분할: 10,10,10,10,10,11
     const t21PageSizes = [10, 10, 10, 10, 10, 11];
     let t21Idx = 0;
-    const t21Pages = t21PageSizes.map((size, i) => {
-      const page = t21Questions.slice(t21Idx, t21Idx + size).map((q, idx) => ({
-        question_num: (idx + 1).toString(),
+    let t21NumCounter = 1;
+    const t21Pages = t21PageSizes.map((size) => {
+      const page = t21Questions.slice(t21Idx, t21Idx + size).map((q) => ({
+        question_num: (t21NumCounter++).toString(),
         question_id: q.question_id,
         question_text: q.question_text
       }));
