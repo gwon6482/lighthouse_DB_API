@@ -38,9 +38,23 @@ const getSurveyForm = async (req, res) => {
   const fiveValues = [2, 4, 5, 8, 9];
 
   try {
-    // 1. T1 (T1_personality)
     const T1Model = getQuestionModel('T1_personality');
-    let t1Questions = await T1Model.find({}).sort({ question_id: 1 }).lean();
+    const T21Model = getQuestionModel('T2_1_talent');
+    const T22Model = getQuestionModel('T2_2_interest');
+    const T23Model = getQuestionModel('T2_3_values');
+    const T3Model = getQuestionModel('T3_environmental');
+
+    // 모든 모델 조회를 병렬로 실행하여 성능 최적화
+    const [rawT1, rawT21, t22Items, t23Items, t3Items] = await Promise.all([
+      T1Model.find({}).sort({ question_id: 1 }).lean(),
+      T21Model.find({}).sort({ question_id: 1 }).lean(),
+      T22Model.find({}).sort({ field_id: 1 }).lean(),
+      T23Model.find({}).sort({ value_id: 1 }).lean(),
+      T3Model.find({}).sort({ item_id: 1 }).lean()
+    ]);
+
+    // 1. T1 (T1_personality) 가공
+    let t1Questions = rawT1;
     // 시드 기반 셔플
     t1Questions = seededShuffle(t1Questions, survey_id);
     // 페이지 분할: 7,7,7,7,7,8
@@ -61,9 +75,8 @@ const getSurveyForm = async (req, res) => {
       t1Part[`page_T1_${i + 1}`] = page;
     });
 
-    // 2. T21 (T2_1_talent)
-    const T21Model = getQuestionModel('T2_1_talent');
-    let t21Questions = await T21Model.find({}).sort({ question_id: 1 }).lean();
+    // 2. T21 (T2_1_talent) 가공
+    let t21Questions = rawT21;
     // 시드 기반 셔플
     t21Questions = seededShuffle(t21Questions, survey_id);
     // 페이지 분할: 10,10,10,10,10,11
@@ -85,8 +98,6 @@ const getSurveyForm = async (req, res) => {
     });
 
     // 3. T22 (T2_2_interest)
-    const T22Model = getQuestionModel('T2_2_interest');
-    const t22Items = await T22Model.find({}).sort({ field_id: 1 }).lean();
     const t22Part = {
       survey_part: 'T22',
       items: t22Items.map(item => ({
@@ -97,8 +108,6 @@ const getSurveyForm = async (req, res) => {
     };
 
     // 4. T23 (T2_3_values)
-    const T23Model = getQuestionModel('T2_3_values');
-    const t23Items = await T23Model.find({}).sort({ value_id: 1 }).lean();
     const t23Part = {
       survey_part: 'T23',
       items: t23Items.map(item => ({
@@ -109,8 +118,6 @@ const getSurveyForm = async (req, res) => {
     };
 
     // 5. T3 (T3_environmental)
-    const T3Model = getQuestionModel('T3_environmental');
-    const t3Items = await T3Model.find({}).sort({ item_id: 1 }).lean();
     const t3Part = {
       survey_part: 'T3',
       items: t3Items.map(item => ({
