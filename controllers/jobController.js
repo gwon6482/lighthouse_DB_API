@@ -1,5 +1,34 @@
 const mongoose = require('mongoose');
 
+// career_attributes code → name 맵 (첫 조회 후 캐싱)
+let _codeNameCache = null;
+async function getCodeNameMap() {
+  if (_codeNameCache) return _codeNameCache;
+  const refDb = mongoose.connection.useDb(process.env.REFERENCE_DATA_DB || 'reference_data');
+  const attrs = await refDb.collection('career_attributes')
+    .find({}, { projection: { code: 1, name: 1, _id: 0 } }).toArray();
+  _codeNameCache = Object.fromEntries(attrs.map(a => [a.code, a.name]));
+  return _codeNameCache;
+}
+
+// details 항목에 name 필드 추가 (code → name 역변환)
+function enrichDetails(details, codeNameMap) {
+  if (!details) return details;
+  const result = {};
+  for (const [catKey, catData] of Object.entries(details)) {
+    result[catKey] = {};
+    for (const [perspective, subObj] of Object.entries(catData)) {
+      result[catKey][perspective] = {};
+      for (const [scope, items] of Object.entries(subObj)) {
+        result[catKey][perspective][scope] = Array.isArray(items)
+          ? items.map(item => ({ ...item, name: codeNameMap[item.code] ?? item.code }))
+          : items;
+      }
+    }
+  }
+  return result;
+}
+
 const getJobModel = () => {
   const jobDb = mongoose.connection.useDb(process.env.JOB_DATA_DB || 'job_data');
   const modelName = 'JobData';
@@ -33,7 +62,10 @@ const getJobByCode = async (req, res, next) => {
       });
     }
 
-    const Job = getJobModel();
+    const [Job, codeNameMap] = await Promise.all([
+      Promise.resolve(getJobModel()),
+      getCodeNameMap(),
+    ]);
     const job = await Job.findOne({ jobCode }).lean();
 
     if (!job) {
@@ -45,7 +77,7 @@ const getJobByCode = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: job
+      data: { ...job, details: enrichDetails(job.details, codeNameMap) }
     });
   } catch (error) {
     // MongoDB 타임아웃

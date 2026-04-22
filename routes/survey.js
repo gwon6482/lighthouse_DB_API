@@ -142,10 +142,14 @@ router.get('/form', getSurveyForm);
  *                           type: string
  *                   T3:
  *                     type: object
- *                     description: 환경 관련 응답
- *                     additionalProperties:
- *                       type: string
- *                       enum: [O, X, M]
+ *                     description: 업무환경 파트별 레벨 (1~5 정수)
+ *                     properties:
+ *                       T3_PHY: { type: integer, minimum: 1, maximum: 5, description: 근무환경 강도 }
+ *                       T3_PEO: { type: integer, minimum: 1, maximum: 5, description: 대인접촉 강도 }
+ *                       T3_COM: { type: integer, minimum: 1, maximum: 5, description: 커뮤니케이션 강도 }
+ *                       T3_RES: { type: integer, minimum: 1, maximum: 5, description: 책임·권한 강도 }
+ *                       T3_STR: { type: integer, minimum: 1, maximum: 5, description: 스트레스 강도 }
+ *                       T3_FLX: { type: integer, minimum: 1, maximum: 5, description: 업무 유동성 }
  *           example:
  *             survey_id: "12"
  *             completed_at: "2024-06-13T15:30:00+09:00"
@@ -270,55 +274,12 @@ router.get('/form', getSurveyForm);
  *                 priority_3: "T3_3"
  *                 no_priority: ["T3_4", "T3_5", "T3_6"]
  *               T3:
- *                 T3_1_1_1: "X"
- *                 T3_1_1_2: "M"
- *                 T3_1_1_3: "O"
- *                 T3_1_2_1: "X"
- *                 T3_1_2_2: "M"
- *                 T3_1_2_3: "O"
- *                 T3_1_2_4: "X"
- *                 T3_1_2_5: "M"
- *                 T3_1_2_6: "O"
- *                 T3_1_3_1: "X"
- *                 T3_1_3_2: "M"
- *                 T3_1_3_3: "O"
- *                 T3_1_3_4: "X"
- *                 T3_2_1_1: "M"
- *                 T3_2_2_1: "O"
- *                 T3_2_2_2: "X"
- *                 T3_2_2_3: "M"
- *                 T3_2_3_1: "O"
- *                 T3_2_3_2: "X"
- *                 T3_2_3_3: "M"
- *                 T3_2_3_4: "O"
- *                 T3_3_1_1: "X"
- *                 T3_3_1_2: "M"
- *                 T3_3_1_3: "O"
- *                 T3_3_2_1: "X"
- *                 T3_3_2_2: "M"
- *                 T3_3_2_3: "O"
- *                 T3_3_2_4: "X"
- *                 T3_3_2_5: "M"
- *                 T3_3_2_6: "O"
- *                 T3_3_2_7: "X"
- *                 T3_3_3_1: "M"
- *                 T3_3_3_2: "O"
- *                 T3_3_3_3: "X"
- *                 T3_4_1_1: "M"
- *                 T3_4_1_2: "O"
- *                 T3_4_1_3: "X"
- *                 T3_4_1_4: "M"
- *                 T3_4_1_5: "O"
- *                 T3_4_1_6: "X"
- *                 T3_4_1_7: "M"
- *                 T3_4_1_8: "O"
- *                 T3_4_1_9: "X"
- *                 T3_4_2_1: "M"
- *                 T3_4_2_2: "O"
- *                 T3_4_2_3: "X"
- *                 T3_4_2_4: "M"
- *                 T3_4_3_1: "O"
- *                 T3_4_3_2: "X"
+ *                 T3_PHY: 3
+ *                 T3_PEO: 2
+ *                 T3_COM: 4
+ *                 T3_RES: 3
+ *                 T3_STR: 2
+ *                 T3_FLX: 5
  *     responses:
  *       201:
  *         description: 설문 응답 저장 성공
@@ -461,19 +422,14 @@ router.post('/response', submitSurveyResponse);
  *                           type: string
  *                     T3:
  *                       type: object
+ *                       description: 업무환경 파트별 레벨 (1~5 정수)
  *                       properties:
- *                         O:
- *                           type: array
- *                           items:
- *                             type: string
- *                         M:
- *                           type: array
- *                           items:
- *                             type: string
- *                         X:
- *                           type: array
- *                           items:
- *                             type: string
+ *                         T3_PHY: { type: integer, minimum: 1, maximum: 5 }
+ *                         T3_PEO: { type: integer, minimum: 1, maximum: 5 }
+ *                         T3_COM: { type: integer, minimum: 1, maximum: 5 }
+ *                         T3_RES: { type: integer, minimum: 1, maximum: 5 }
+ *                         T3_STR: { type: integer, minimum: 1, maximum: 5 }
+ *                         T3_FLX: { type: integer, minimum: 1, maximum: 5 }
  *       400:
  *         description: survey_id 누락
  *         content:

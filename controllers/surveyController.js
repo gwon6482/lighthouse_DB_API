@@ -265,17 +265,26 @@ const submitSurveyResponse = async (req, res) => {
         }
       }
     }
-    // T3: X/M/O 카운트 누적 (상위 그룹 키는 통계에서 제거)
+    // T3: 파트별 레벨(1~5) Welford 누적
     if (data.answers.T3) {
-      for (const [itemId, value] of Object.entries(data.answers.T3)) {
-        // 상위 그룹 키(T3_1, T3_2, T3_3 등)는 무시
-        if (/^T3_\d+$/.test(itemId)) continue;
-        if (["X","M","O"].includes(value)) {
-          if (!updatedStats.question_stats[itemId]) {
-            updatedStats.question_stats[itemId] = {};
-          }
-          updatedStats.question_stats[itemId][value] = (updatedStats.question_stats[itemId][value] || 0) + 1;
+      for (const [partCode, level] of Object.entries(data.answers.T3)) {
+        const score = Number(level);
+        if (isNaN(score) || score < 1 || score > 5) continue;
+        if (!updatedStats.question_stats[partCode]) {
+          updatedStats.question_stats[partCode] = { count: 0, mean: 0, stddev: 0, M2: 0 };
         }
+        const stat = updatedStats.question_stats[partCode];
+        const prevCount = stat.count || 0;
+        const prevMean = stat.mean || 0;
+        const prevM2 = stat.M2 || 0;
+        const newCount = prevCount + 1;
+        const delta = score - prevMean;
+        const newMean = prevMean + delta / newCount;
+        const newM2 = prevM2 + delta * (score - newMean);
+        stat.count = newCount;
+        stat.mean = newMean;
+        stat.stddev = newCount > 1 ? Math.sqrt(newM2 / (newCount - 1)) : 0;
+        stat.M2 = newM2;
       }
     }
     // T1, T21 그룹별 통계 누적
@@ -392,11 +401,8 @@ const getSurveyReport = async (req, res) => {
     const T1_GROUPS = ['E', 'C', 'S', 'A', 'I', 'R', 'G', 'U', 'T'];
     const T21_GROUPS = ['T', 'L', 'M', 'B', 'S', 'I', 'N', 'A'];
 
-    // 4. T3 O/M/X 분류
-    const t3 = { O: [], M: [], X: [] };
-    for (const [itemId, value] of Object.entries(answers.T3 || {})) {
-      if (t3[value]) t3[value].push(itemId);
-    }
+    // 4. T3 파트별 레벨 그대로 반환
+    const t3 = answers.T3 || {};
 
     res.json({
       success: true,
@@ -510,38 +516,35 @@ const getSurveyAnalysis = async (req, res) => {
       values[p] = code ? { code, name: t23NameMap[code] || code } : null;
     }
 
-    // T3 환경 — O(선호)/M(보통) 항목을 DB에서 이름 조회 후 카테고리별 그룹화
+    // T3 환경 — 파트별 레벨(1~5) + 이름/설명 + 모집단 통계
     const T3Model = getQuestionModel('T3_environmental');
     const t3Answers = answers.T3 || {};
-    const preferredIds = Object.entries(t3Answers).filter(([, v]) => v === 'O').map(([k]) => k);
-    const neutralIds = Object.entries(t3Answers).filter(([, v]) => v === 'M').map(([k]) => k);
+    const T3_PARTS = ['T3_PHY', 'T3_PEO', 'T3_COM', 'T3_RES', 'T3_STR', 'T3_FLX'];
 
-    const allT3Ids = [...preferredIds, ...neutralIds];
-    const t3Items = allT3Ids.length > 0
-      ? await T3Model.find(
-          { item_id: { $in: allT3Ids } },
-          { item_id: 1, item_name: 1, category_code: 1, category_name: 1, sub_category_name: 1, _id: 0 }
-        ).lean()
-      : [];
+    const t3PartDocs = await T3Model.find(
+      { part_code: { $in: T3_PARTS } },
+      { part_code: 1, part_name: 1, levels: 1, _id: 0 }
+    ).lean();
+    const t3PartMap = Object.fromEntries(t3PartDocs.map(p => [p.part_code, p]));
 
-    const t3ItemMap = Object.fromEntries(t3Items.map(i => [i.item_id, i]));
-    const t3ByCategory = {};
-    const groupT3 = (ids, type) => {
-      for (const id of ids) {
-        const item = t3ItemMap[id];
-        if (!item) continue;
-        if (!t3ByCategory[item.category_code]) {
-          t3ByCategory[item.category_code] = { name: item.category_name, preferred: [], neutral: [] };
-        }
-        t3ByCategory[item.category_code][type].push({
-          item_id: item.item_id,
-          name: item.item_name,
-          sub_category: item.sub_category_name
-        });
-      }
-    };
-    groupT3(preferredIds, 'preferred');
-    groupT3(neutralIds, 'neutral');
+    const environmentParts = T3_PARTS.map(partCode => {
+      const level = t3Answers[partCode] ?? null;
+      const partInfo = t3PartMap[partCode];
+      const stat = statistics?.question_stats?.[partCode];
+      const popMean = stat?.mean ?? null;
+      const popStddev = stat?.stddev ?? null;
+      const topPercent = (level !== null && popMean !== null && popStddev)
+        ? Math.round((1 - normalCDF(popMean, popStddev, level)) * 1000) / 10
+        : null;
+      return {
+        code: partCode,
+        name: partInfo?.part_name || partCode,
+        level,
+        average: popMean !== null ? Math.round(popMean * 10) / 10 : null,
+        top_percent: topPercent,
+        level_description: partInfo?.levels?.find(l => l.level === level)?.description ?? null
+      };
+    }).filter(p => p.level !== null);
 
     res.json({
       success: true,
@@ -553,9 +556,7 @@ const getSurveyAnalysis = async (req, res) => {
         interest,
         values,
         environment: {
-          preferred_count: preferredIds.length,
-          neutral_count: neutralIds.length,
-          by_category: t3ByCategory
+          parts: environmentParts
         }
       }
     });
@@ -616,7 +617,7 @@ function normalizeScore(value, answer_type) {
   }
   if (answer_type === 'type_10') {
     const raw = Number(value);
-    if (!isNaN(raw) && raw >= 0 && raw <= 9) return raw / 9;
+    if (!isNaN(raw) && raw >= 1 && raw <= 10) return (raw - 1) / 9;
     return null;
   }
   return null;
