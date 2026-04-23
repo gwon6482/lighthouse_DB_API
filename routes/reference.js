@@ -3,7 +3,8 @@ const router = express.Router();
 const {
   getSurveyElements, getSurveyElementByCode, getCareerAttributes, getCareerAttributeByCode,
   createSurveyElement, updateSurveyElement, deleteSurveyElement,
-  createCareerAttribute, updateCareerAttribute, deleteCareerAttribute
+  createCareerAttribute, updateCareerAttribute, deleteCareerAttribute,
+  getT1Types, getT1TypeByCode
 } = require('../controllers/referenceController');
 
 /**
@@ -310,5 +311,53 @@ router.post('/career-attributes', createCareerAttribute);
 router.get('/career-attributes/:code', getCareerAttributeByCode);
 router.put('/career-attributes/:code', updateCareerAttribute);
 router.delete('/career-attributes/:code', deleteCareerAttribute);
+
+/**
+ * @swagger
+ * /api/reference/t1-types:
+ *   get:
+ *     summary: T1 성격 유형 목록 조회
+ *     description: reference_data.t1_types 컬렉션의 135개 T1 유형을 조회합니다. base_type, modifier_type으로 필터링 가능합니다.
+ *     tags: [Reference]
+ *     parameters:
+ *       - in: query
+ *         name: base_type
+ *         schema:
+ *           type: string
+ *           enum: [E, C, S, A, I, R, G, U, T]
+ *         description: 대유형 코드
+ *       - in: query
+ *         name: modifier_type
+ *         schema:
+ *           type: string
+ *           enum: [TOP2, BOTTOM1]
+ *         description: 수식어 유형
+ *     responses:
+ *       200:
+ *         description: 조회 성공
+ */
+router.get('/t1-types', getT1Types);
+
+/**
+ * @swagger
+ * /api/reference/t1-types/{type_code}:
+ *   get:
+ *     summary: T1 성격 유형 단건 조회
+ *     description: type_code로 특정 T1 유형을 조회합니다. (예: T1EUC)
+ *     tags: [Reference]
+ *     parameters:
+ *       - in: path
+ *         name: type_code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "T1 유형 코드 (예: T1EUC)"
+ *     responses:
+ *       200:
+ *         description: 조회 성공
+ *       404:
+ *         description: 해당 유형 코드 없음
+ */
+router.get('/t1-types/:type_code', getT1TypeByCode);
 
 module.exports = router;

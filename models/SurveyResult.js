@@ -21,6 +21,9 @@ const surveyResultSchema = new mongoose.Schema({
   converted_answers: {
     type: Object
   },
+  T1_result: {
+    type: Object
+  },
   raw_payload: {
     type: Object
   }

@@ -1,5 +1,6 @@
 const SurveyElement = require('../models/SurveyElement');
 const CareerAttribute = require('../models/CareerAttribute');
+const T1Type = require('../models/T1Type');
 
 // GET /api/reference/survey-elements?test_code=T1&area=personality&level=upper&parent_code=A
 const getSurveyElements = async (req, res, next) => {
@@ -160,8 +161,37 @@ const deleteCareerAttribute = async (req, res, next) => {
   }
 };
 
+// GET /api/reference/t1-types?base_type=E&modifier_type=TOP2
+const getT1Types = async (req, res, next) => {
+  try {
+    const { base_type, modifier_type } = req.query;
+    const filter = {};
+    if (base_type) filter.base_type = base_type.toUpperCase();
+    if (modifier_type) filter.modifier_type = modifier_type.toUpperCase();
+    const types = await T1Type.find(filter, '-__v').sort({ type_code: 1 });
+    res.json({ success: true, count: types.length, data: types });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/reference/t1-types/:type_code
+const getT1TypeByCode = async (req, res, next) => {
+  try {
+    const type_code = req.params.type_code.toUpperCase();
+    const type = await T1Type.findOne({ type_code }, '-__v');
+    if (!type) {
+      return res.status(404).json({ success: false, error: '해당 유형 코드를 찾을 수 없습니다' });
+    }
+    res.json({ success: true, data: type });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getSurveyElements, getSurveyElementByCode, getCareerAttributes, getCareerAttributeByCode,
   createSurveyElement, updateSurveyElement, deleteSurveyElement,
-  createCareerAttribute, updateCareerAttribute, deleteCareerAttribute
+  createCareerAttribute, updateCareerAttribute, deleteCareerAttribute,
+  getT1Types, getT1TypeByCode
 };

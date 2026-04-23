@@ -1,11 +1,9 @@
-// 설문지(프론트엔드용) API 컨트롤러 틀
-// 추후 실제 로직 구현 예정
-
 const mongoose = require('mongoose');
 const { getQuestionModel } = require('./adminController');
 const SurveyResult = require('../models/SurveyResult');
 const SurveyQuestionnaire = require('../models/SurveyQuestionnaire');
 const SurveyStatistics = require('../models/SurveyStatistics');
+const T1Type = require('../models/T1Type');
 
 // 전체 설문지 조회 (GET)
 const getSurveyForm = async (req, res) => {
@@ -50,7 +48,7 @@ const getSurveyForm = async (req, res) => {
       T21Model.find({}).sort({ question_id: 1 }).lean(),
       T22Model.find({}).sort({ field_id: 1 }).lean(),
       T23Model.find({}).sort({ value_id: 1 }).lean(),
-      T3Model.find({}).sort({ item_id: 1 }).lean()
+      T3Model.find({}).sort({ part_code: 1 }).lean()
     ]);
 
     // 1. T1 (T1_personality) 가공
@@ -121,9 +119,10 @@ const getSurveyForm = async (req, res) => {
     const t3Part = {
       survey_part: 'T3',
       items: t3Items.map(item => ({
-        item_id: item.item_id,
-        item_name: item.item_name,
-        item_definition: item.item_definition || ''
+        item_id: item.part_code,
+        item_name: item.part_name,
+        item_question: item.part_question || '',
+        levels: item.levels || []
       }))
     };
 
@@ -176,19 +175,39 @@ const submitSurveyResponse = async (req, res) => {
     const converted_answers = convertAnswers(data.answers, statistics, data.answer_type);
     // console.log('converted_answers:', converted_answers);
 
-    // 3. 응답원본 + 환산응답 DB에 업로드
+    // 3. T1 유형 계산 (저장 전)
+    let T1_result = null;
+    if (data.answers.T1) {
+      const t1GroupScores = calcT1GroupScores(data.answers.T1, data.answer_type);
+      const t1TypeCalc = calcT1Type(t1GroupScores);
+      if (t1TypeCalc) {
+        const typeDoc = await T1Type.findOne({ type_code: t1TypeCalc.type_code }, '-_id -__v').lean();
+        T1_result = {
+          ...t1TypeCalc,
+          ...(typeDoc ? {
+            base_name: typeDoc.base_name,
+            modifier: typeDoc.modifier,
+            full_name: typeDoc.full_name,
+            description: typeDoc.description
+          } : {})
+        };
+      }
+    }
+
+    // 4. 응답원본 + 환산응답 + T1_result DB에 업로드
     const saved = await SurveyResult.create({
       survey_id: data.survey_id,
       respondent_id: data.respondent_id || null,
       answers: data.answers,
       converted_answers,
+      T1_result,
       raw_payload: data,
       submitted_at: new Date()
     });
     //console.log('save:', saved);
 
 
-    // 4. 기존 통계치에 응답값을 반영해서 항목별 통계치를 업데이트 (평균, 표준편차 실제 갱신)
+    // 5. 기존 통계치에 응답값을 반영해서 항목별 통계치를 업데이트 (평균, 표준편차 실제 갱신)
     const updatedStats = JSON.parse(JSON.stringify(statistics)); // deep copy
     delete updatedStats._id; // _id 중복 방지
     updatedStats.total_surveys = (updatedStats.total_surveys || 0) + 1;
@@ -337,7 +356,7 @@ const submitSurveyResponse = async (req, res) => {
     //     console.log(k, v);
     //   }
     // });
-    // 5. 최신통계치 DB에 업로드 (insert, 항상 새 도큐먼트)
+    // 6. 최신통계치 DB에 업로드 (insert, 항상 새 도큐먼트)
     updatedStats.generated_at = new Date();
     await SurveyStatistics.create(updatedStats);
 
@@ -546,11 +565,43 @@ const getSurveyAnalysis = async (req, res) => {
       };
     }).filter(p => p.level !== null);
 
+    // T1 유형 결과
+    let T1_result = result.T1_result || null;
+    if (!T1_result && answers.T1) {
+      const t1GroupScores = calcT1GroupScores(answers.T1, answer_type);
+      const t1TypeCalc = calcT1Type(t1GroupScores);
+      if (t1TypeCalc) {
+        const typeDoc = await T1Type.findOne({ type_code: t1TypeCalc.type_code }, '-_id -__v').lean();
+        T1_result = {
+          ...t1TypeCalc,
+          ...(typeDoc ? {
+            base_name: typeDoc.base_name,
+            modifier: typeDoc.modifier,
+            full_name: typeDoc.full_name,
+            description: typeDoc.description
+          } : {})
+        };
+      }
+    }
+    // T1 유형에 상위% 추가
+    if (T1_result?.group_scores) {
+      T1_result = { ...T1_result, percentiles: {} };
+      for (const g of ['E','C','S','A','I','R','G','U','T']) {
+        const userScore = T1_result.group_scores[g];
+        if (userScore === undefined) continue;
+        const stat = groupStats[`T1_${g}`];
+        if (stat?.mean !== undefined && stat?.stddev !== undefined) {
+          T1_result.percentiles[g] = Math.round((1 - normalCDF(stat.mean, stat.stddev, userScore)) * 1000) / 10;
+        }
+      }
+    }
+
     res.json({
       success: true,
       survey_id,
       answer_type,
       analysis: {
+        personality_type: T1_result,
         personality: { top3: personalityScores.slice(0, 3), all: personalityScores },
         talent: { top3: talentScores.slice(0, 3), all: talentScores },
         interest,
@@ -584,6 +635,106 @@ const updateSurveyStatistics = async (req, res) => {
   } catch (error) {
     console.error('통계치 갱신 오류:', error);
     res.status(500).json({ success: false, error: '통계치 갱신 중 오류가 발생했습니다', message: error.message });
+  }
+};
+
+// T1 그룹(E,C,S,A,I,R,G,U,T)별 정규화 점수 평균 계산
+function calcT1GroupScores(T1answers, answer_type) {
+  if (!T1answers) return {};
+  const T1_GROUPS = ['E', 'C', 'S', 'A', 'I', 'R', 'G', 'U', 'T'];
+  const groupScores = {};
+  for (const g of T1_GROUPS) {
+    const qids = Object.keys(T1answers).filter(qid => qid.startsWith(`T1_${g}`));
+    if (qids.length === 0) continue;
+    const scores = qids.map(qid => normalizeScore(T1answers[qid], answer_type)).filter(s => s !== null);
+    if (scores.length > 0) {
+      groupScores[g] = scores.reduce((a, b) => a + b, 0) / scores.length;
+    }
+  }
+  return groupScores;
+}
+
+// T1 유형 계산: 그룹 점수 → { type_code, base_type, modifier_type, modifier_element, group_scores }
+// type_code = "T1" + base_type + "U"(TOP2)/+"B"(BOTTOM1) + modifier_element
+// TOP2 조건: top1-top2 점수 차이 ≤ 0.15
+function calcT1Type(scores) {
+  const sorted = Object.entries(scores)
+    .filter(([, v]) => v !== null && v !== undefined)
+    .sort((a, b) => b[1] - a[1]);
+  if (sorted.length < 2) return null;
+
+  const [top1Code, top1Score] = sorted[0];
+  const [top2Code, top2Score] = sorted[1];
+  const [bottom1Code] = sorted[sorted.length - 1];
+
+  const diff = top1Score - top2Score;
+  const useTOP2 = diff <= 0.15;
+  const modifierIndicator = useTOP2 ? 'U' : 'B';
+  const modifierElement = useTOP2 ? top2Code : bottom1Code;
+
+  return {
+    type_code: `T1${top1Code}${modifierIndicator}${modifierElement}`,
+    base_type: top1Code,
+    modifier_type: useTOP2 ? 'TOP2' : 'BOTTOM1',
+    modifier_element: modifierElement,
+    group_scores: scores
+  };
+}
+
+// T1 유형 결과 조회 (GET /api/survey/t1-result/:survey_id)
+const getT1Result = async (req, res) => {
+  try {
+    const { survey_id } = req.params;
+    const result = await SurveyResult.findOne({ survey_id }, { T1_result: 1, answers: 1, raw_payload: 1, _id: 0 }).lean();
+    if (!result) {
+      return res.status(404).json({ success: false, error: '해당 survey_id의 응답이 존재하지 않습니다.' });
+    }
+
+    let T1_result = result.T1_result || null;
+
+    // 구버전 응답(T1_result 미저장)에 대한 실시간 계산
+    if (!T1_result && result.answers?.T1) {
+      const answer_type = result.raw_payload?.answer_type;
+      const t1GroupScores = calcT1GroupScores(result.answers.T1, answer_type);
+      const t1TypeCalc = calcT1Type(t1GroupScores);
+      if (t1TypeCalc) {
+        const typeDoc = await T1Type.findOne({ type_code: t1TypeCalc.type_code }, '-_id -__v').lean();
+        T1_result = {
+          ...t1TypeCalc,
+          ...(typeDoc ? {
+            base_name: typeDoc.base_name,
+            modifier: typeDoc.modifier,
+            full_name: typeDoc.full_name,
+            description: typeDoc.description
+          } : {})
+        };
+      }
+    }
+
+    if (!T1_result) {
+      return res.status(404).json({ success: false, error: 'T1 응답 데이터가 없습니다.' });
+    }
+
+    // 그룹별 상위% 추가
+    if (T1_result.group_scores) {
+      const statistics = await SurveyStatistics.findOne({}).sort({ generated_at: -1 }).lean();
+      const groupStats = statistics?.group_stats || {};
+      const percentiles = {};
+      for (const g of ['E','C','S','A','I','R','G','U','T']) {
+        const userScore = T1_result.group_scores[g];
+        if (userScore === undefined) continue;
+        const stat = groupStats[`T1_${g}`];
+        if (stat?.mean !== undefined && stat?.stddev !== undefined) {
+          percentiles[g] = Math.round((1 - normalCDF(stat.mean, stat.stddev, userScore)) * 1000) / 10;
+        }
+      }
+      T1_result = { ...T1_result, percentiles };
+    }
+
+    res.json({ success: true, survey_id, T1_result });
+  } catch (error) {
+    console.error('T1 결과 조회 오류:', error);
+    res.status(500).json({ success: false, error: 'T1 결과 조회 중 오류가 발생했습니다', message: error.message });
   }
 };
 
@@ -731,6 +882,7 @@ module.exports = {
   submitSurveyResponse,
   getSurveyReport,
   getSurveyAnalysis,
+  getT1Result,
   updateSurveyStatistics,
   getSurveyStatistics,
   getSurveyResultList

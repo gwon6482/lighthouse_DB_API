@@ -5,6 +5,7 @@ const {
   submitSurveyResponse,
   getSurveyReport,
   getSurveyAnalysis,
+  getT1Result,
   updateSurveyStatistics,
   getSurveyStatistics,
   getSurveyResultList
@@ -479,6 +480,64 @@ router.post('/report', getSurveyReport);
  *                       description: 분석 결과 데이터
  */
 router.get('/analysis/:survey_id', getSurveyAnalysis);
+
+/**
+ * @swagger
+ * /api/survey/t1-result/{survey_id}:
+ *   get:
+ *     summary: T1 성격 유형 결과 조회
+ *     description: 특정 설문의 T1 성격 유형 결과를 반환합니다. type_code, full_name, description과 그룹별 상위%를 포함합니다.
+ *     tags: [Survey]
+ *     parameters:
+ *       - in: path
+ *         name: survey_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 설문 ID
+ *     responses:
+ *       200:
+ *         description: T1 결과 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 survey_id:
+ *                   type: string
+ *                 T1_result:
+ *                   type: object
+ *                   properties:
+ *                     type_code:
+ *                       type: string
+ *                       example: T1EUC
+ *                     base_type:
+ *                       type: string
+ *                     base_name:
+ *                       type: string
+ *                     modifier_type:
+ *                       type: string
+ *                       enum: [TOP2, BOTTOM1]
+ *                     modifier_element:
+ *                       type: string
+ *                     modifier:
+ *                       type: string
+ *                     full_name:
+ *                       type: string
+ *                     description:
+ *                       type: string
+ *                     group_scores:
+ *                       type: object
+ *                       description: "9개 그룹(E,C,S,A,I,R,G,U,T) 정규화 점수"
+ *                     percentiles:
+ *                       type: object
+ *                       description: "그룹별 상위% (통계 부족 시 해당 그룹 키 없음)"
+ *       404:
+ *         description: 해당 survey_id 없음 또는 T1 데이터 없음
+ */
+router.get('/t1-result/:survey_id', getT1Result);
 
 /**
  * @swagger

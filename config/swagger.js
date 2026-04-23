@@ -220,12 +220,16 @@ const options = {
         description: '서버 상태 확인 API'
       },
       {
-        name: 'Admin',
-        description: '관리자 API - 질문 관리'
-      },
-      {
         name: 'Survey',
         description: '설문조사 API'
+      },
+      {
+        name: 'Reference',
+        description: '공통 참조 데이터 (코드 정의, T1 유형)'
+      },
+      {
+        name: 'Admin',
+        description: '관리자 API - 질문/유형 관리'
       }
     ]
   },

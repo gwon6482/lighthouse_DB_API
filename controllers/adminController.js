@@ -6,7 +6,7 @@ const COLLECTION_ID_FIELDS = {
   'T2_1_talent': 'question_id',
   'T2_2_interest': 'field_id',
   'T2_3_values': 'value_id',
-  'T3_environmental': 'item_id'
+  'T3_environmental': 'part_code'
 };
 
 // 동적 모델 생성 함수
@@ -65,17 +65,12 @@ const getQuestionModel = (collectionType) => {
     
     case 'T3_environmental':
       Object.assign(baseSchema, {
-        item_id: { type: String, required: true, unique: true, index: true },
+        part_code:     { type: String, required: true, unique: true, index: true },
         collection_code: String,
-        category_id: String,
-        category_code: String,
-        category_name: String,
-        sub_category_id: String,
-        sub_category_code: String,
-        sub_category_name: String,
-        item_code: String,
-        item_name: String,
-        item_definition: String
+        part_name:     String,
+        part_question: String,
+        levels:        [{ level: Number, description: String }],
+        related_WE:    { type: mongoose.Schema.Types.Mixed }
       });
       break;
   }
@@ -167,10 +162,9 @@ const getAllQuestions = async (req, res) => {
           break;
         case 'T3_environmental':
           searchFields.push(
-            { item_id: { $regex: search, $options: 'i' } },
-            { item_name: { $regex: search, $options: 'i' } },
-            { category_name: { $regex: search, $options: 'i' } },
-            { sub_category_name: { $regex: search, $options: 'i' } }
+            { part_code: { $regex: search, $options: 'i' } },
+            { part_name: { $regex: search, $options: 'i' } },
+            { part_question: { $regex: search, $options: 'i' } }
           );
           break;
       }
@@ -560,6 +554,47 @@ const getAllStats = async (req, res) => {
   }
 };
 
+// T1 유형 목록 조회 (GET /api/admin/t1-types)
+const getAdminT1Types = async (req, res) => {
+  try {
+    const T1Type = require('../models/T1Type');
+    const { base_type, modifier_type } = req.query;
+    const filter = {};
+    if (base_type) filter.base_type = base_type.toUpperCase();
+    if (modifier_type) filter.modifier_type = modifier_type.toUpperCase();
+    const types = await T1Type.find(filter, '-__v').sort({ type_code: 1 }).lean();
+    res.json({ success: true, count: types.length, data: types });
+  } catch (error) {
+    console.error('T1 유형 조회 오류:', error);
+    res.status(500).json({ success: false, error: 'T1 유형 조회 중 오류가 발생했습니다', message: error.message });
+  }
+};
+
+// T1 유형 수정 (PUT /api/admin/t1-types/:type_code)
+const updateAdminT1Type = async (req, res) => {
+  try {
+    const T1Type = require('../models/T1Type');
+    const type_code = req.params.type_code.toUpperCase();
+    delete req.body.type_code; // type_code 변경 불가
+    delete req.body.base_type;
+    delete req.body.modifier_type;
+    delete req.body.modifier_element;
+
+    const updated = await T1Type.findOneAndUpdate(
+      { type_code },
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!updated) {
+      return res.status(404).json({ success: false, error: `type_code '${type_code}'에 해당하는 유형을 찾을 수 없습니다.` });
+    }
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('T1 유형 수정 오류:', error);
+    res.status(500).json({ success: false, error: 'T1 유형 수정 중 오류가 발생했습니다', message: error.message });
+  }
+};
+
 module.exports = {
   getAllQuestions,
   getQuestionById,
@@ -568,5 +603,7 @@ module.exports = {
   deleteQuestion,
   getQuestionStats,
   getAllStats,
-  getQuestionModel
+  getQuestionModel,
+  getAdminT1Types,
+  updateAdminT1Type
 }; 

@@ -7,7 +7,9 @@ const {
   updateQuestion,
   deleteQuestion,
   getQuestionStats,
-  getAllStats
+  getAllStats,
+  getAdminT1Types,
+  updateAdminT1Type
 } = require('../controllers/adminController');
 
 /**
@@ -300,5 +302,64 @@ router.put('/questions/:collection_type/:question_id', updateQuestion);
  *               $ref: '#/components/schemas/Error'
  */
 router.delete('/questions/:collection_type/:question_id', deleteQuestion);
+
+/**
+ * @swagger
+ * /api/admin/t1-types:
+ *   get:
+ *     summary: T1 성격 유형 목록 조회
+ *     description: reference_data.t1_types의 135개 유형을 조회합니다. base_type, modifier_type 필터링 가능.
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: query
+ *         name: base_type
+ *         schema:
+ *           type: string
+ *           enum: [E, C, S, A, I, R, G, U, T]
+ *       - in: query
+ *         name: modifier_type
+ *         schema:
+ *           type: string
+ *           enum: [TOP2, BOTTOM1]
+ *     responses:
+ *       200:
+ *         description: 조회 성공
+ */
+router.get('/t1-types', getAdminT1Types);
+
+/**
+ * @swagger
+ * /api/admin/t1-types/{type_code}:
+ *   put:
+ *     summary: T1 성격 유형 수정
+ *     description: type_code로 특정 T1 유형의 modifier, full_name, description을 수정합니다. type_code, base_type, modifier_type, modifier_element는 변경 불가.
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: path
+ *         name: type_code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "T1 유형 코드 (예: T1EUC)"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               modifier:
+ *                 type: string
+ *               full_name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 수정 성공
+ *       404:
+ *         description: 해당 type_code 없음
+ */
+router.put('/t1-types/:type_code', updateAdminT1Type);
 
 module.exports = router; 
