@@ -34,9 +34,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Swagger JSON 스펙 (동적 서버 URL)
 app.get('/api-docs/swagger.json', (req, res) => {
+  const host = req.get('host') || '';
+  const serverUrl = host.includes('localhost') || host.includes('127.0.0.1')
+    ? `http://${host}`
+    : 'https://api.lighthouse.career';
   res.json({
     ...swaggerSpecs,
-    servers: [{ url: `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['x-forwarded-host'] || req.get('host')}`, description: '현재 서버' }]
+    servers: [{ url: serverUrl, description: '현재 서버' }]
   });
 });
 
