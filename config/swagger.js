@@ -18,13 +18,12 @@ const options = {
     },
     servers: [
       {
-        url: 'http://218.155.36.75:3000',
-        description: '개발 서버'
+        url: 'https://api.lighthouse.career',
+        description: '프로덕션 서버'
       },
       {
-        //url: 'https://api.lighthouse.com',
-        url: 'http://218.155.36.75:3000',
-        description: '프로덕션 서버'
+        url: 'http://localhost:3000',
+        description: '로컬 개발 서버'
       }
     ],
     components: {
