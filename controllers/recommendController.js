@@ -338,4 +338,96 @@ const postJobRecommend = async (req, res, next) => {
   }
 };
 
-module.exports = { getJobRecommendBySurveyId, postJobRecommend };
+// ─── 단일 직업 매칭 점수 ─────────────────────────────────────────────────────
+
+const JOB_DETAIL_PROJECTION = {
+  jobCode: 1, title: 1, classification: 1, salary: 1, jobSatisfaction: 1,
+  'details.성격.중요도.직업간':        1,
+  'details.흥미.중요도.직업간':        1,
+  'details.가치관.중요도.직업간':      1,
+  'details.업무수행능력.중요도.직업간': 1,
+  'details.업무활동.중요도.직업간':    1,
+  'details.업무환경.중요도.직업간':    1,
+  _id: 0,
+};
+
+async function calcJobMatch(jobCode, userSurvey) {
+  const [t3Parts, Job] = await Promise.all([getT3Parts(), Promise.resolve(getJobModel())]);
+  const job = await Job.findOne({ jobCode }, JOB_DETAIL_PROJECTION).lean();
+  if (!job) return null;
+  const { total, detail } = calcTotalMatch(userSurvey, job, t3Parts);
+  return { job, total, detail };
+}
+
+// GET /api/job/:jobCode/match?survey_id=xxx
+const getJobMatchScore = async (req, res, next) => {
+  try {
+    const { jobCode } = req.params;
+    const { survey_id } = req.query;
+
+    if (!survey_id) {
+      return res.status(400).json({ success: false, error: 'survey_id 쿼리 파라미터가 필요합니다.' });
+    }
+
+    const surveyResult = await SurveyResult.findOne({ survey_id }).lean();
+    if (!surveyResult) {
+      return res.status(404).json({ success: false, error: `survey_id '${survey_id}'에 해당하는 검사 결과를 찾을 수 없습니다.` });
+    }
+
+    const userSurvey = buildUserSurvey(surveyResult);
+    const result = await calcJobMatch(jobCode, userSurvey);
+    if (!result) {
+      return res.status(404).json({ success: false, error: `jobCode '${jobCode}'에 해당하는 직업을 찾을 수 없습니다.` });
+    }
+
+    res.json({
+      success: true,
+      jobCode: result.job.jobCode,
+      title: result.job.title,
+      classification: result.job.classification,
+      survey_id,
+      match_score: result.total,
+      match_detail: result.detail,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/job/:jobCode/match  (점수 직접 전달, 프리뷰용)
+const postJobMatchScore = async (req, res, next) => {
+  try {
+    const { jobCode } = req.params;
+    const { T1, T21, T22, T23, T3 } = req.body || {};
+
+    if (!T1 && !T21 && !T22 && !T23 && !T3) {
+      return res.status(400).json({ success: false, error: '요청 body에 검사 결과가 없습니다.' });
+    }
+
+    const userSurvey = {
+      T1:  T1  ?? {},
+      T21: T21 ?? {},
+      T22: T22 ?? { checked: [] },
+      T23: T23 ?? {},
+      T3:  T3  ?? {},
+    };
+
+    const result = await calcJobMatch(jobCode, userSurvey);
+    if (!result) {
+      return res.status(404).json({ success: false, error: `jobCode '${jobCode}'에 해당하는 직업을 찾을 수 없습니다.` });
+    }
+
+    res.json({
+      success: true,
+      jobCode: result.job.jobCode,
+      title: result.job.title,
+      classification: result.job.classification,
+      match_score: result.total,
+      match_detail: result.detail,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getJobRecommendBySurveyId, postJobRecommend, getJobMatchScore, postJobMatchScore };

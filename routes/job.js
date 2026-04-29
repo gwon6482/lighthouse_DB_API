@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getJobByCode, searchJobByName, getJobList, createJob, updateJob, deleteJob, getClassifications, getMajors } = require('../controllers/jobController');
-const { getJobRecommendBySurveyId, postJobRecommend } = require('../controllers/recommendController');
+const { getJobRecommendBySurveyId, postJobRecommend, getJobMatchScore, postJobMatchScore } = require('../controllers/recommendController');
 
 /**
  * @swagger
@@ -517,6 +517,120 @@ router.get('/search', searchJobByName);
 router.get('/recommend/:survey_id', getJobRecommendBySurveyId);
 router.post('/recommend', postJobRecommend);
 router.post('/', createJob);
+/**
+ * @swagger
+ * /api/job/{jobCode}/match:
+ *   get:
+ *     summary: 특정 직업과의 매칭 점수 조회
+ *     description: |
+ *       survey_id로 저장된 검사 결과와 특정 직업 코드의 매칭 점수를 계산하여 반환합니다.
+ *       매칭 점수 = T1×0.20 + T21×0.25 + T22×0.25 + T23×0.20 + T3×0.10
+ *     tags: [Job]
+ *     parameters:
+ *       - in: path
+ *         name: jobCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 직업 코드
+ *         example: "011102"
+ *       - in: query
+ *         name: survey_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 검사 결과 ID
+ *         example: "SURV20260429D_TEST001T"
+ *     responses:
+ *       200:
+ *         description: 매칭 점수 계산 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 jobCode:
+ *                   type: string
+ *                 title:
+ *                   type: string
+ *                 survey_id:
+ *                   type: string
+ *                 match_score:
+ *                   type: number
+ *                   description: 종합 매칭 점수 (0~1)
+ *                 match_detail:
+ *                   type: object
+ *                   properties:
+ *                     T1:
+ *                       type: number
+ *                     T21:
+ *                       type: number
+ *                     T22:
+ *                       type: number
+ *                     T23:
+ *                       type: number
+ *                     T3:
+ *                       type: number
+ *       400:
+ *         description: survey_id 파라미터 누락
+ *       404:
+ *         description: 해당 survey_id 또는 jobCode 없음
+ *   post:
+ *     summary: 검사 결과 직접 전달로 특정 직업 매칭 점수 계산
+ *     description: |
+ *       survey_id 없이 검사 결과를 body로 직접 전달하여 특정 직업과의 매칭 점수를 계산합니다.
+ *     tags: [Job]
+ *     parameters:
+ *       - in: path
+ *         name: jobCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 직업 코드
+ *         example: "011102"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               T1:
+ *                 type: object
+ *                 description: "성격 9요소 점수 (E/C/S/A/I/R/G/U/T, 각 0~1)"
+ *                 example: {"E": 0.82, "C": 0.79, "S": 0.61, "A": 0.55, "I": 0.48, "R": 0.21, "G": 0.63, "U": 0.70, "T": 0.58}
+ *               T21:
+ *                 type: object
+ *                 description: "재능 8요소 점수 (L/M/S/A/B/I/N/T, 각 0~1)"
+ *                 example: {"L": 0.45, "M": 0.82, "S": 0.60, "A": 0.30, "B": 0.25, "I": 0.55, "N": 0.70, "T": 0.40}
+ *               T22:
+ *                 type: object
+ *                 properties:
+ *                   checked:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                 example: {"checked": ["T22_TEC_2", "T22_SCI_1"]}
+ *               T23:
+ *                 type: object
+ *                 description: "가치관 우선순위 (priority_1/2/3: T23_1~T23_13)"
+ *                 example: {"priority_1": "T23_3", "priority_2": "T23_9", "priority_3": "T23_4"}
+ *               T3:
+ *                 type: object
+ *                 description: "업무환경 파트별 레벨 (T3_PHY/PEO/COM/RES/STR/FLX, 각 1~5)"
+ *                 example: {"T3_PHY": 2, "T3_PEO": 3, "T3_COM": 3, "T3_RES": 4, "T3_STR": 3, "T3_FLX": 4}
+ *     responses:
+ *       200:
+ *         description: 매칭 점수 계산 성공 (GET /api/job/:jobCode/match 와 동일 구조)
+ *       400:
+ *         description: 요청 body 없음
+ *       404:
+ *         description: 해당 jobCode 없음
+ */
+router.get('/:jobCode/match', getJobMatchScore);
+router.post('/:jobCode/match', postJobMatchScore);
 router.get('/:jobCode', getJobByCode);
 router.put('/:jobCode', updateJob);
 router.delete('/:jobCode', deleteJob);
