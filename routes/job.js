@@ -349,6 +349,167 @@ const { getJobRecommendBySurveyId, postJobRecommend } = require('../controllers/
  *       404:
  *         description: 해당 jobCode 없음
  */
+/**
+ * @swagger
+ * /api/job/recommend/{survey_id}:
+ *   get:
+ *     summary: 검사 결과 기반 직업 추천
+ *     description: |
+ *       survey_id로 저장된 검사 결과를 조회하여 537개 직업 전체와의 매칭 점수를 계산하고 상위 직업을 반환합니다.
+ *       매칭 점수 = T1×0.20 + T21×0.25 + T22×0.25 + T23×0.20 + T3×0.10
+ *     tags: [Job]
+ *     parameters:
+ *       - in: path
+ *         name: survey_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 검사 결과 ID
+ *         example: "SURV20260429D_TEST001T"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 30
+ *         description: 반환할 직업 수 (최대 30)
+ *       - in: query
+ *         name: primary
+ *         schema:
+ *           type: string
+ *         description: 대분류 필터 (classification.primary 일치)
+ *         example: "연구직 및 공학기술직"
+ *       - in: query
+ *         name: min_score
+ *         schema:
+ *           type: number
+ *           format: float
+ *           default: 0
+ *         description: 최소 매칭 점수 필터 (0~1)
+ *     responses:
+ *       200:
+ *         description: 추천 직업 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 survey_id:
+ *                   type: string
+ *                 total_jobs:
+ *                   type: integer
+ *                   description: 매칭 대상 전체 직업 수
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       jobCode:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       classification:
+ *                         type: object
+ *                         properties:
+ *                           primary:
+ *                             type: string
+ *                           secondary:
+ *                             type: string
+ *                       match_score:
+ *                         type: number
+ *                         description: 종합 매칭 점수 (0~1)
+ *                       match_detail:
+ *                         type: object
+ *                         properties:
+ *                           T1:
+ *                             type: number
+ *                           T21:
+ *                             type: number
+ *                           T22:
+ *                             type: number
+ *                           T23:
+ *                             type: number
+ *                           T3:
+ *                             type: number
+ *                       salary:
+ *                         type: object
+ *                         properties:
+ *                           lower:
+ *                             type: number
+ *                           median:
+ *                             type: number
+ *                           upper:
+ *                             type: number
+ *                       jobSatisfaction:
+ *                         type: number
+ *       404:
+ *         description: 해당 survey_id의 검사 결과 없음
+ */
+/**
+ * @swagger
+ * /api/job/recommend:
+ *   post:
+ *     summary: 검사 결과 직접 전달로 직업 추천 (테스트/프리뷰용)
+ *     description: |
+ *       survey_id 없이 검사 결과를 body로 직접 전달하여 추천받습니다.
+ *       T1/T21은 그룹 점수(0~1)를 키-값으로 전달합니다.
+ *     tags: [Job]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 30
+ *       - in: query
+ *         name: primary
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: min_score
+ *         schema:
+ *           type: number
+ *           format: float
+ *           default: 0
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               T1:
+ *                 type: object
+ *                 description: "성격 9요소 점수 (E/C/S/A/I/R/G/U/T, 각 0~1)"
+ *                 example: {"E": 0.82, "C": 0.79, "S": 0.61, "A": 0.55, "I": 0.48, "R": 0.21, "G": 0.63, "U": 0.70, "T": 0.58}
+ *               T21:
+ *                 type: object
+ *                 description: "재능 8요소 점수 (L/M/S/A/B/I/N/T, 각 0~1)"
+ *                 example: {"L": 0.45, "M": 0.82, "S": 0.60, "A": 0.30, "B": 0.25, "I": 0.55, "N": 0.70, "T": 0.40}
+ *               T22:
+ *                 type: object
+ *                 properties:
+ *                   checked:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                 example: {"checked": ["T22_TEC_2", "T22_SCI_1"]}
+ *               T23:
+ *                 type: object
+ *                 description: "가치관 우선순위 (priority_1/2/3: T23_1~T23_13)"
+ *                 example: {"priority_1": "T23_3", "priority_2": "T23_9", "priority_3": "T23_4"}
+ *               T3:
+ *                 type: object
+ *                 description: "업무환경 파트별 레벨 (T3_PHY/PEO/COM/RES/STR/FLX, 각 1~5)"
+ *                 example: {"T3_PHY": 2, "T3_PEO": 3, "T3_COM": 3, "T3_RES": 4, "T3_STR": 3, "T3_FLX": 4}
+ *     responses:
+ *       200:
+ *         description: 추천 직업 목록 (GET /recommend/:survey_id 와 동일 구조)
+ *       400:
+ *         description: 요청 body 없음
+ */
 router.get('/list', getJobList);
 router.get('/classifications', getClassifications);
 router.get('/majors', getMajors);
