@@ -36,7 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api-docs/swagger.json', (req, res) => {
   res.json({
     ...swaggerSpecs,
-    servers: [{ url: `${req.protocol}://${req.get('host')}`, description: '현재 서버' }]
+    servers: [{ url: `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['x-forwarded-host'] || req.get('host')}`, description: '현재 서버' }]
   });
 });
 
