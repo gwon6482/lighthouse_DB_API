@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getJobByCode, searchJobByName, getJobList, createJob, updateJob, deleteJob, getClassifications, getMajors } = require('../controllers/jobController');
+const { getJobRecommendBySurveyId, postJobRecommend } = require('../controllers/recommendController');
 
 /**
  * @swagger
@@ -352,6 +353,8 @@ router.get('/list', getJobList);
 router.get('/classifications', getClassifications);
 router.get('/majors', getMajors);
 router.get('/search', searchJobByName);
+router.get('/recommend/:survey_id', getJobRecommendBySurveyId);
+router.post('/recommend', postJobRecommend);
 router.post('/', createJob);
 router.get('/:jobCode', getJobByCode);
 router.put('/:jobCode', updateJob);
