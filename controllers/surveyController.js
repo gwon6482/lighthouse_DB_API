@@ -467,15 +467,16 @@ const getSurveyAnalysis = async (req, res) => {
     const SurveyElement = require('../models/SurveyElement');
     const [t1Elements, t21Elements] = await Promise.all([
       SurveyElement.find({ test_code: 'T1', level: 'upper' }, { code: 1, name: 1, _id: 0 }).lean(),
-      SurveyElement.find({ test_code: 'T21', level: 'upper' }, { code: 1, name: 1, _id: 0 }).lean()
+      SurveyElement.find({ test_code: 'T21', level: 'upper' }, { code: 1, name: 1, definition: 1, _id: 0 }).lean()
     ]);
     const t1NameMap = Object.fromEntries(t1Elements.map(e => [e.code, e.name]));
     const t21NameMap = Object.fromEntries(t21Elements.map(e => [e.code, e.name]));
+    const t21DefMap = Object.fromEntries(t21Elements.map(e => [e.code, e.definition || null]));
 
     // T23 이름 매핑 — T2_3_values 컬렉션에서 value_id 기준 조회
     const T23Model = getQuestionModel('T2_3_values');
-    const t23All = await T23Model.find({}, { value_id: 1, value_name: 1, _id: 0 }).lean();
-    const t23NameMap = Object.fromEntries(t23All.map(e => [e.value_id, e.value_name]));
+    const t23All = await T23Model.find({}, { value_id: 1, value_name: 1, value_definition: 1, _id: 0 }).lean();
+    const t23Map = Object.fromEntries(t23All.map(e => [e.value_id, { name: e.value_name, definition: e.value_definition || null }]));
 
     // T1/T21 그룹 점수 계산 헬퍼
     const calcGroupScores = (part, groups, nameMap) => {
@@ -505,7 +506,8 @@ const getSurveyAnalysis = async (req, res) => {
     };
 
     const personalityScores = calcGroupScores('T1', ['E','C','S','A','I','R','G','U','T'], t1NameMap);
-    const talentScores = calcGroupScores('T21', ['T','L','M','B','S','I','N','A'], t21NameMap);
+    const talentScores = calcGroupScores('T21', ['T','L','M','B','S','I','N','A'], t21NameMap)
+      .map(s => ({ ...s, definition: t21DefMap[s.code] || null }));
 
     // T22 관심 분야 — checked 항목을 DB에서 이름 조회 후 카테고리별 그룹화
     const T22Model = getQuestionModel('T2_2_interest');
@@ -528,11 +530,11 @@ const getSurveyAnalysis = async (req, res) => {
       }
     }
 
-    // T23 가치관 — priority 코드를 이름으로 변환
+    // T23 가치관 — priority 코드를 이름/설명으로 변환
     const values = {};
     for (const p of ['priority_1', 'priority_2', 'priority_3']) {
       const code = answers.T23?.[p];
-      values[p] = code ? { code, name: t23NameMap[code] || code } : null;
+      values[p] = code ? { code, name: t23Map[code]?.name || code, definition: t23Map[code]?.definition || null } : null;
     }
 
     // T3 환경 — 파트별 레벨(1~5) + 이름/설명 + 모집단 통계
