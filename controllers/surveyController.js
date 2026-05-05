@@ -469,6 +469,11 @@ const getSurveyAnalysis = async (req, res) => {
       SurveyElement.find({ test_code: 'T1', level: 'upper' }, { code: 1, name: 1, _id: 0 }).lean(),
       SurveyElement.find({ test_code: 'T21', level: 'upper' }, { code: 1, name: 1, definition: 1, _id: 0 }).lean()
     ]);
+    const firstSentence = (str) => {
+      if (!str) return null;
+      const m = str.match(/^[^.!?]+[.!?]/);
+      return m ? m[0].trim() : str.trim();
+    };
     const t1NameMap = Object.fromEntries(t1Elements.map(e => [e.code, e.name]));
     const t21NameMap = Object.fromEntries(t21Elements.map(e => [e.code, e.name]));
     const t21DefMap = Object.fromEntries(t21Elements.map(e => [e.code, firstSentence(e.definition)]));
@@ -476,11 +481,6 @@ const getSurveyAnalysis = async (req, res) => {
     // T23 이름 매핑 — T2_3_values 컬렉션에서 value_id 기준 조회
     const T23Model = getQuestionModel('T2_3_values');
     const t23All = await T23Model.find({}, { value_id: 1, value_name: 1, value_definition: 1, _id: 0 }).lean();
-    const firstSentence = (str) => {
-      if (!str) return null;
-      const m = str.match(/^[^.!?]+[.!?]/);
-      return m ? m[0].trim() : str.trim();
-    };
     const t23Map = Object.fromEntries(t23All.map(e => [e.value_id, { name: e.value_name, definition: firstSentence(e.value_definition) }]));
 
     // T1/T21 그룹 점수 계산 헬퍼
