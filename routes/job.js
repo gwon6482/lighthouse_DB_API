@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getJobByCode, searchJobByName, getJobList, createJob, updateJob, deleteJob, getClassifications, getMajors } = require('../controllers/jobController');
 const { getJobRecommendBySurveyId, postJobRecommend, getJobMatchScore, postJobMatchScore } = require('../controllers/recommendController');
+const { getApprovedReviews, submitReview } = require('../controllers/reviewController');
 
 /**
  * @swagger
@@ -631,6 +632,8 @@ router.post('/', createJob);
  */
 router.get('/:jobCode/match', getJobMatchScore);
 router.post('/:jobCode/match', postJobMatchScore);
+router.get('/:jobCode/reviews', getApprovedReviews);
+router.post('/:jobCode/reviews', submitReview);
 router.get('/:jobCode', getJobByCode);
 router.put('/:jobCode', updateJob);
 router.delete('/:jobCode', deleteJob);

@@ -11,6 +11,7 @@ const {
   getAdminT1Types,
   updateAdminT1Type
 } = require('../controllers/adminController');
+const { getAdminReviews, createAdminReview, updateAdminReview, deleteAdminReview } = require('../controllers/reviewController');
 
 /**
  * @swagger
@@ -361,5 +362,10 @@ router.get('/t1-types', getAdminT1Types);
  *         description: 해당 type_code 없음
  */
 router.put('/t1-types/:type_code', updateAdminT1Type);
+
+router.get('/reviews', getAdminReviews);
+router.post('/reviews', createAdminReview);
+router.put('/reviews/:id', updateAdminReview);
+router.delete('/reviews/:id', deleteAdminReview);
 
 module.exports = router; 
