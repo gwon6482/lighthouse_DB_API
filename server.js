@@ -16,6 +16,8 @@ const adminRoutes = require('./routes/admin');
 const surveyRoutes = require('./routes/survey');
 const jobRoutes = require('./routes/job');
 const referenceRoutes = require('./routes/reference');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
 
 const app = express();
 
@@ -78,6 +80,8 @@ app.get(['/api-docs', '/api-docs/'], (req, res) => {
 });
 
 // 라우터
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/survey', surveyRoutes);
 app.use('/api/job', jobRoutes);

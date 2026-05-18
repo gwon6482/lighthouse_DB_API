@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "PORT=4000 nodemon server.js",
+    "dev": "cross-env PORT=4000 nodemon server.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop lighthouse-db-api",
     "pm2:restart": "pm2 restart lighthouse-db-api",
@@ -36,10 +36,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.0.3",
     "morgan": "^1.10.0",
     "pm2": "^5.3.0",
@@ -48,6 +50,7 @@
   "devDependencies": {
     "axios": "^1.13.6",
     "cheerio": "^1.2.0",
+    "cross-env": "^10.1.0",
     "nodemon": "^3.0.2"
   }
 }

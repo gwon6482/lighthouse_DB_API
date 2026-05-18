@@ -1,4 +1,11 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+const dnsServers = dns.getServers();
+if (dnsServers.length === 1 && dnsServers[0] === '127.0.0.1') {
+  dns.setServers(['168.126.63.1', '8.8.8.8', '1.1.1.1']);
+  console.log('⚙️ Node DNS 서버를 외부 DNS로 재설정했습니다:', dns.getServers());
+}
 
 let isConnected = false;
 
@@ -26,6 +33,10 @@ const connectDB = async () => {
     // reference_data 데이터베이스 연결 테스트
     const referenceDataDb = mongoose.connection.useDb(process.env.REFERENCE_DATA_DB || 'reference_data');
     console.log(`✅ reference_data 데이터베이스 연결 확인: ${process.env.REFERENCE_DATA_DB || 'reference_data'}`);
+
+    // user_data 데이터베이스 연결 테스트
+    const userDataDb = mongoose.connection.useDb(process.env.USER_DATA_DB || 'user_data');
+    console.log(`✅ user_data 데이터베이스 연결 확인: ${process.env.USER_DATA_DB || 'user_data'}`);
     
     // 데이터베이스 상태 확인
     const adminDb = mongoose.connection.db.admin();

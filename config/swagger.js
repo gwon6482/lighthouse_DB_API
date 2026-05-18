@@ -26,6 +26,7 @@ const options = {
         description: '로컬 개발 서버'
       }
     ],
+    security: [{ bearerAuth: [] }],
     components: {
       schemas: {
         Question: {
@@ -191,6 +192,14 @@ const options = {
           }
         }
       },
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'POST /api/auth/login 에서 발급된 JWT 토큰을 입력하세요'
+        }
+      },
       parameters: {
         collectionType: {
           name: 'collection_type',
@@ -215,12 +224,20 @@ const options = {
     },
     tags: [
       {
-        name: 'Health',
-        description: '서버 상태 확인 API'
+        name: 'Auth',
+        description: '인증 API - 회원가입, 로그인, JWT 발급'
+      },
+      {
+        name: 'User',
+        description: '유저 API - 프로필, 설문결과, 북마크, 기기 관리'
       },
       {
         name: 'Survey',
         description: '설문조사 API'
+      },
+      {
+        name: 'Job',
+        description: '직업 정보 API'
       },
       {
         name: 'Reference',
@@ -229,6 +246,10 @@ const options = {
       {
         name: 'Admin',
         description: '관리자 API - 질문/유형 관리'
+      },
+      {
+        name: 'Health',
+        description: '서버 상태 확인 API'
       }
     ]
   },
