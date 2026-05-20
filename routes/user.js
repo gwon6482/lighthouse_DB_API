@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getProfile, updateProfile, deleteAccount, addSurveyResult, getSurveyResults, getBookmarks, addBookmark, removeBookmark, registerDevice, removeDevice } = require('../controllers/userController');
+const { getProfile, updateProfile, deleteAccount, addSurveyResult, getSurveyResults, getBookmarks, addBookmark, removeBookmark, saveRecommendedJobs, registerDevice, removeDevice } = require('../controllers/userController');
 const { authenticate } = require('../middleware/auth');
 
 // 모든 /api/user 라우트는 인증 필요
@@ -188,6 +188,7 @@ router.post('/bookmarks/:jobCode', addBookmark);
  *         description: 북마크되지 않은 직업
  */
 router.delete('/bookmarks/:jobCode', removeBookmark);
+router.post('/recommended-jobs', saveRecommendedJobs);
 
 /**
  * @swagger

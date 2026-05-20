@@ -83,6 +83,12 @@ const UserSchema = new mongoose.Schema({
     default: []
   },
 
+  // 검사 결과 기반 종합 추천 직업 (jobCode 목록, 최대 30)
+  recommendedJobs: {
+    type: [String],
+    default: []
+  },
+
   // 진로설계 (미구현 — 추후 careerDesign 컬렉션 UID로 교체)
   careerDesigns: {
     type: [String],

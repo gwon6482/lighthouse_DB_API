@@ -212,6 +212,25 @@ const removeBookmark = async (req, res, next) => {
   }
 };
 
+// POST /api/user/recommended-jobs
+const saveRecommendedJobs = async (req, res, next) => {
+  try {
+    const { jobCodes } = req.body;
+    if (!Array.isArray(jobCodes)) {
+      return res.status(400).json({ success: false, error: 'jobCodes 배열이 필요합니다' });
+    }
+    const user = await User.findOne({ uid: req.user.uid });
+    if (!user) {
+      return res.status(404).json({ success: false, error: '유저를 찾을 수 없습니다' });
+    }
+    user.recommendedJobs = jobCodes.slice(0, 30);
+    await user.save();
+    res.json({ success: true, recommendedJobs: user.recommendedJobs });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // POST /api/user/devices — FCM 기기 토큰 등록/갱신
 const registerDevice = async (req, res, next) => {
   try {
@@ -273,5 +292,6 @@ module.exports = {
   getProfile, updateProfile, deleteAccount,
   addSurveyResult, getSurveyResults,
   getBookmarks, addBookmark, removeBookmark,
+  saveRecommendedJobs,
   registerDevice, removeDevice,
 };
