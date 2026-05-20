@@ -112,6 +112,8 @@ const getSurveyForm = async (req, res) => {
       survey_part: 'T23',
       items: t23Items.map(item => ({
         item_id: item.value_id,
+        value_code: item.value_code,
+        value_name: item.value_name,
         item_text: item.value_question,
         item_definition: item.value_definition || ''
       }))
